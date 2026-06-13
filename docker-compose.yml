@@ -1,0 +1,53 @@
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: researchforge-db
+    environment:
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: forgepass
+      POSTGRES_DB: researchforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge -d researchforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: researchforge-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: researchforge-searxng
+    ports:
+      - "8888:8080"
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8888/
+    volumes:
+      - ./searxng-settings:/etc/searxng
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
