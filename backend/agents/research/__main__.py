@@ -15,7 +15,7 @@ async def main(num_workers: int = 3):
         consumer = ResearchWorkerConsumer()
         consumer_task = consumer.run(consumer_id=f"worker-{i}")
         tasks.append(consumer_task)
-    await asyncio.gather(*tasks)
+    await asyncio.gather(*tasks) # type: ignore
 
 if __name__ == "__main__":
     asyncio.run(main(num_workers=3))

@@ -1,0 +1,50 @@
+import asyncio
+import logging
+import sys
+from sqlalchemy import select, func
+from backend.core.database import async_session
+from backend.models.research_finding import ResearchFinding
+from backend.agents.claim.agent import ClaimExtraction
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def main():
+    # Fetch a random finding that has markdown_content
+    async with async_session() as session:
+        stmt = (
+            select(ResearchFinding)
+            .where(ResearchFinding.markdown_content.isnot(None))
+            .order_by(func.random())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        finding = result.scalar_one_or_none()
+
+        if not finding:
+            logger.error("No findings with markdown_content found. Run the research worker first.")
+            return
+
+        logger.info(f"Testing extraction on finding: {finding.id}")
+        logger.info(f"URL: {finding.url}")
+        logger.info(f"Markdown length: {len(finding.markdown_content)} chars") # type: ignore #
+
+    # Instantiate the ClaimExtractor
+    extractor = ClaimExtraction()  # Uses default LLM from get_llm()
+
+    # Run extraction
+    claims = await extractor.extract_claims_from_finding(finding)
+
+    # Print results
+    print(f"\n✅ Extracted {len(claims)} claims:\n")
+    for i, claim in enumerate(claims, 1):
+        print(f"Claim {i}:")
+        print(f"  Text: {claim.claim}")
+        print(f"  Evidence: {claim.evidence[:200]}...")
+        print(f"  Confidence: {claim.confidence:.2f}")
+        print(f"  Importance: {claim.importance}")
+        print(f"  Type: {claim.type.value}")
+        print("-" * 60)
+
+if __name__ == "__main__":
+    asyncio.run(main())
