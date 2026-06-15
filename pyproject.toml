@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "asyncpg>=0.31.0",
     "crawl4ai>=0.8.9",
     "dotenv>=0.9.9",
     "fastapi[standard]>=0.136.3",
@@ -15,5 +16,6 @@ dependencies = [
     "langgraph>=1.2.5",
     "pgvector>=0.4.2",
     "pydantic>=2.13.4",
+    "redis>=8.0.0",
     "sqlalchemy>=2.0.50",
 ]

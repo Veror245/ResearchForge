@@ -1,7 +1,7 @@
 from uuid import UUID
 from sqlalchemy import String, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from backend.models.research_task import ResearchTask
+# from .research_task import ResearchTask
 from pgvector.sqlalchemy import Vector
 from .base import Base, TimestampMixin, generate_uuid
 
@@ -20,6 +20,7 @@ class ResearchFinding(Base, TimestampMixin):
 
     embedding = mapped_column(Vector(1536), nullable=True)  # adjust dimension later
 
-    task: Mapped["ResearchTask"] = relationship(
+    task: Mapped["ResearchTask"] = relationship( # type: ignore
         "ResearchTask", back_populates="findings"
     )
+    
