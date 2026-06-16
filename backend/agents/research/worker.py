@@ -25,12 +25,18 @@ class ResearchWorker:
                     "body_width": None
                 }
             ),
-            scan_full_page = True,
+            scan_full_page = False,
             scroll_delay=0.4,
             wait_until="domcontentloaded",
             page_timeout=10000,
             delay_before_return_html=0.1,
             stream = False,
+            exclude_all_images = True,
+            remove_overlay_elements = True,
+            remove_consent_popups = True,
+            simulate_user = True,
+            override_navigator = True,
+            magic = True
         )
         
         self.browser_config = BrowserConfig(

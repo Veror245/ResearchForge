@@ -11,8 +11,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-#TODO: Fix Claim Extraction and Crawling pages
-
+#TODO: fix llm speed
 class ClaimExtraction:
     def __init__(self):
         self.llm = claim_llm
@@ -68,7 +67,7 @@ class ClaimExtraction:
         Chunk the markdown content of a research finding into smaller pieces for processing.
         """
         chunks = self.chunker.chunk(markdown)
-        result = [chunk.text for chunk in chunks][:5]
+        result = [chunk.text for chunk in chunks]
         return result
 
     async def extract_claims_from_finding(self, finding: ResearchFinding) -> list[Claim]:
@@ -95,12 +94,15 @@ class ClaimExtraction:
             except Exception as e:
                 logger.error(f"Chunk {chunk_idx + 1}: LLM call failed: {e}")
                 continue
+            if chunk_idx == 1:
+                logger.warning("Reached chunk limit for testing. Stopping further processing.")
+                break
 
             # Parse with Titanium Fallback
             claims_from_chunk = self._titanium_parse_claims(content)
             all_claims.extend(claims_from_chunk)
             logger.info(f"Chunk {chunk_idx + 1}: extracted {len(claims_from_chunk)} claims")
-            time.sleep(1)  # brief pause to respect rate limits, adjust as needed
+            time.sleep(5)  # brief pause to respect rate limits, adjust as needed
 
         # Optional: deduplicate or filter globally here
         return all_claims

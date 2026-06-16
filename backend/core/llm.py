@@ -1,5 +1,6 @@
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from dotenv import load_dotenv
 import os
 
@@ -13,9 +14,15 @@ llm = ChatOpenAI(
     max_retries=3
 )
 
-claim_llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+# claim_llm = ChatGroq(
+#     model="llama-3.1-8b-instant",
+#     temperature=0.0,
+#     api_key=os.getenv("GROQ_API_KEY", "dummy"), # type: ignore
+#     max_retries=3,
+# )
+
+claim_llm = ChatOllama(
+    model="qwen3.5:4b",
     temperature=0.0,
-    api_key=os.getenv("GROQ_API_KEY", "dummy"), # type: ignore
-    max_retries=3,
+    reasoning=False,
 )
