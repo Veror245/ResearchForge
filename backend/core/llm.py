@@ -21,8 +21,16 @@ llm = ChatOpenAI(
 #     max_retries=3,
 # )
 
-claim_llm = ChatOllama(
+# claim_llm = ChatOllama(
+#     model="qwen3.5:4b",
+#     temperature=0.0,
+#     reasoning=False,
+# )
+
+claim_llm = ChatOpenAI(
     model="qwen3.5:4b",
+    base_url="http://localhost:8080/v1",
     temperature=0.0,
-    reasoning=False,
+    api_key=os.getenv("OLLAMA_API_KEY", "dummy"), # type: ignore
+    max_retries=3,
 )
