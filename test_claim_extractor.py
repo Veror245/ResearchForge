@@ -5,6 +5,7 @@ from sqlalchemy import select, func
 from backend.core.database import async_session
 from backend.models.research_finding import ResearchFinding
 from backend.agents.claim.agent import ClaimExtraction
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,7 +15,7 @@ async def main():
     async with async_session() as session:
         stmt = (
             select(ResearchFinding)
-            .where(ResearchFinding.markdown_content.isnot(None))
+            .where(ResearchFinding.markdown_content.isnot(None)).where(ResearchFinding.id == "7e849550-85d2-4509-9a33-012aefdb4e36")
             .order_by(func.random())
             .limit(1)
         )
@@ -32,10 +33,16 @@ async def main():
     # Instantiate the ClaimExtractor
     extractor = ClaimExtraction()  # Uses default LLM from get_llm()
 
-    # Run extraction
-    claims = await extractor.extract_claims_from_finding(finding)
+    # t0 = time.time()
+    # # Run extraction
+    # claims = await extractor.extract_claims_from_finding(finding)
+    # print(f"Extraction completed in {time.time() - t0:.2f} seconds.")
+    
+    t0 = time.time()
+    claims = await extractor.extract_claims_from_finding_parallel(finding)
+    print(f"Parallel extraction completed in {time.time() - t0:.2f} seconds.")
 
-    # Print results
+    #Print results
     print(f"\n✅ Extracted {len(claims)} claims:\n")
     for i, claim in enumerate(claims, 1):
         print(f"Claim {i}:")

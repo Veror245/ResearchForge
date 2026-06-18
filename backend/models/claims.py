@@ -37,6 +37,6 @@ class Claim(BaseModel):
 
 class ClaimsResponse(BaseModel):
     claims: list[Claim] = Field(
-        description="List of extracted claims from the document"
+        description="List of extracted claims from the document, MAXIMUM 5 CLAIMS, NO MORE THAN 5 CLAIMS"
     )
     

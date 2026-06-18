@@ -1,3 +1,5 @@
+from itertools import chain
+
 from backend.models.claims import ClaimsResponse, ClaimType, Claim
 from backend.models.research_finding import ResearchFinding
 from backend.core.llm import claim_llm
@@ -7,6 +9,7 @@ from chonkie import SentenceChunker
 import json
 import logging
 from pydantic import ValidationError
+import asyncio
 import time
 
 logger = logging.getLogger(__name__)
@@ -17,8 +20,8 @@ class ClaimExtraction:
         self.llm = claim_llm
         self.chunker = SentenceChunker(
                 tokenizer="character",     # Default tokenizer (or use "gpt2", etc.)
-                chunk_size=1000,           # Maximum tokens per chunk
-                chunk_overlap=200,         # Overlap between chunks
+                chunk_size=2000,           # Maximum tokens per chunk
+                chunk_overlap=100,         # Overlap between chunks
                 min_sentences_per_chunk=5  # Minimum sentences in each chunk
             )
         self.claim_parser = PydanticOutputParser(pydantic_object=Claim)
@@ -53,6 +56,8 @@ class ClaimExtraction:
             - If the document contains no factual claims, return an empty list `[]`.
             - The `evidence` field must always be a verbatim snippet from the text (not a paraphrase). If you cannot find the exact phrase, use `""` but lower your confidence.
             - Your response must be a single JSON object matching the ClaimsResponse schema.
+            
+            IMPORTANT: EXTRACT NO MORE THAN 5 CLAIMS. MAKE SURE THERE ARE ONLY 5 CLAIMS EXTRACTED MAXIMUM.
 
             {format_instructions}"""),
                     ("user", """Document:
@@ -61,6 +66,8 @@ class ClaimExtraction:
             Extract claims from the above document according to the instructions.""")
                 ]
             ).partial(format_instructions=self.claims_response_parser.get_format_instructions())
+        
+        self.sem = asyncio.Semaphore(4)  # Limit concurrent LLM calls to 4
 
     def chunk_findings(self, markdown: str) -> list[str]:
         """
@@ -94,15 +101,15 @@ class ClaimExtraction:
             except Exception as e:
                 logger.error(f"Chunk {chunk_idx + 1}: LLM call failed: {e}")
                 continue
-            if chunk_idx == 1:
-                logger.warning("Reached chunk limit for testing. Stopping further processing.")
-                break
+            # if chunk_idx == 1:
+            #     logger.warning("Reached chunk limit for testing. Stopping further processing.")
+            #     break
 
             # Parse with Titanium Fallback
             claims_from_chunk = self._titanium_parse_claims(content)
             all_claims.extend(claims_from_chunk)
             logger.info(f"Chunk {chunk_idx + 1}: extracted {len(claims_from_chunk)} claims")
-            time.sleep(5)  # brief pause to respect rate limits, adjust as needed
+            # time.sleep(5)  # brief pause to respect rate limits, adjust as needed
 
         # Optional: deduplicate or filter globally here
         return all_claims
@@ -177,3 +184,96 @@ class ClaimExtraction:
 
         # If everything fails, return an empty list
         return []
+    
+    async def extract_claims_from_finding_parallel(
+        self,
+        finding: ResearchFinding,
+    ) -> list[Claim]:
+        """
+        Extract claims from a single research finding.
+
+        Splits markdown into chunks, processes them in parallel,
+        parses the outputs, and returns a combined list of claims.
+        """
+
+        markdown_content = finding.markdown_content or ""
+
+        if not markdown_content:
+            return []
+
+        chunks = self.chunk_findings(markdown_content)
+
+        logger.info(
+            f"Created {len(chunks)} chunks"
+        )
+
+        chain = self.claim_extraction_prompt | self.llm
+
+        async def process_chunk(
+            chunk: str,
+            chunk_idx: int,
+        ) -> list[Claim]:
+
+            logger.info(
+                f"Processing chunk "
+                f"{chunk_idx + 1}/{len(chunks)}"
+            )
+
+            try:
+                async with self.sem:
+
+                    raw_output = await self._call_llm(
+                        chain,
+                        {"document": chunk},
+                    )
+
+                content = raw_output.content.strip()
+
+            except Exception as e:
+                logger.error(
+                    f"Chunk {chunk_idx + 1}: "
+                    f"LLM call failed: {e}"
+                )
+                return []
+
+            claims = self._titanium_parse_claims(
+                content
+            )
+
+            logger.info(
+                f"Chunk {chunk_idx + 1}: "
+                f"extracted {len(claims)} claims"
+            )
+
+            return claims
+
+        tasks = [
+            process_chunk(chunk, idx)
+            for idx, chunk in enumerate(chunks)
+        ]
+
+        results = await asyncio.gather(
+            *tasks,
+            return_exceptions=True,
+        )
+
+        all_claims: list[Claim] = []
+
+        for result in results:
+
+            if isinstance(result, Exception):
+                logger.error(
+                    f"Task failed: {result}"
+                )
+                continue
+
+            all_claims.extend(result) # type: ignore
+
+        logger.info(
+            f"Total extracted claims: "
+            f"{len(all_claims)}"
+        )
+
+        return all_claims
+
+        
