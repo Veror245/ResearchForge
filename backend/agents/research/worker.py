@@ -96,6 +96,9 @@ class ResearchWorker:
         crawl_results = await self.crawl(search_results)
         print(f"Crawled {len(crawl_results)} pages for query: '{query}'")
         
+        for result in crawl_results:
+            result["query"] = query
+
         return crawl_results
     
 if __name__ == "__main__":
@@ -105,6 +108,6 @@ if __name__ == "__main__":
         results = await worker.research(query)
         
         for i, result in enumerate(results):
-            print(f"\nResult {i + 1}:\nURL: {result['url']}\nMarkdown: {result['markdown'][:100]}\n{'-' * 80}")
+            print(f"\nResult {i + 1}:\nURL: {result['url']}\nMarkdown: {result['markdown'][:100]}\nQuery: {result['query']}\n{'-' * 80}")
 
     asyncio.run(main())

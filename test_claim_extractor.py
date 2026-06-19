@@ -15,10 +15,12 @@ async def main():
     async with async_session() as session:
         stmt = (
             select(ResearchFinding)
-            .where(ResearchFinding.markdown_content.isnot(None)).where(ResearchFinding.id == "7e849550-85d2-4509-9a33-012aefdb4e36")
+            .where(ResearchFinding.markdown_content.isnot(None)).where(ResearchFinding.id != "812dcbe6-6675-4bc4-9fc7-7f54b9b37d88")
             .order_by(func.random())
             .limit(1)
         )
+        
+        
         result = await session.execute(stmt)
         finding = result.scalar_one_or_none()
 
@@ -38,8 +40,9 @@ async def main():
     # claims = await extractor.extract_claims_from_finding(finding)
     # print(f"Extraction completed in {time.time() - t0:.2f} seconds.")
     
+    print(finding.query)
     t0 = time.time()
-    claims = await extractor.extract_claims_from_finding_parallel(finding)
+    claims = await extractor.extract_claims_from_finding_parallel(finding, query=finding.query)  # Pass the query to the parallel extraction
     print(f"Parallel extraction completed in {time.time() - t0:.2f} seconds.")
 
     #Print results
@@ -48,6 +51,7 @@ async def main():
         print(f"Claim {i}:")
         print(f"  Text: {claim.claim}")
         print(f"  Evidence: {claim.evidence[:200]}...")
+        print(f" Evidence length: {len(claim.evidence.split())} words")
         print(f"  Confidence: {claim.confidence:.2f}")
         print(f"  Importance: {claim.importance}")
         print(f"  Type: {claim.type.value}")

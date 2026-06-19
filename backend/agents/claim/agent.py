@@ -56,13 +56,18 @@ class ClaimExtraction:
             - If the document contains no factual claims, return an empty list `[]`.
             - The `evidence` field must always be a verbatim snippet from the text (not a paraphrase). If you cannot find the exact phrase, use `""` but lower your confidence.
             - Your response must be a single JSON object matching the ClaimsResponse schema.
+            - Prioritize claims that may help answer the query. Claims do not need to directly answer the query. Extract factual claims about capabilities, limitations,
+              performance, adoption, competition, pricing, market position, or technical characteristics if they may be useful for reasoning about the query.
             
             IMPORTANT: EXTRACT NO MORE THAN 5 CLAIMS. MAKE SURE THERE ARE ONLY 5 CLAIMS EXTRACTED MAXIMUM.
+            
 
             {format_instructions}"""),
                     ("user", """Document:
             {document}
 
+            Query:
+            {query}
             Extract claims from the above document according to the instructions.""")
                 ]
             ).partial(format_instructions=self.claims_response_parser.get_format_instructions())
@@ -77,7 +82,7 @@ class ClaimExtraction:
         result = [chunk.text for chunk in chunks]
         return result
 
-    async def extract_claims_from_finding(self, finding: ResearchFinding) -> list[Claim]:
+    async def extract_claims_from_finding(self, finding: ResearchFinding, query: str) -> list[Claim]:
         """
         Extract claims from a single research finding.
         Splits the markdown into chunks, processes each chunk
@@ -96,7 +101,7 @@ class ClaimExtraction:
             logger.info(f"Processing chunk {chunk_idx + 1}/{len(chunks)}")
             try:
                 # Call the LLM (with retry if you have a call_with_retry wrapper)
-                raw_output = await self._call_llm(chain, {"document": chunk})
+                raw_output = await self._call_llm(chain, {"document": chunk, "query": query})
                 content = raw_output.content.strip()
             except Exception as e:
                 logger.error(f"Chunk {chunk_idx + 1}: LLM call failed: {e}")
@@ -188,6 +193,7 @@ class ClaimExtraction:
     async def extract_claims_from_finding_parallel(
         self,
         finding: ResearchFinding,
+        query: str,
     ) -> list[Claim]:
         """
         Extract claims from a single research finding.
@@ -224,10 +230,14 @@ class ClaimExtraction:
 
                     raw_output = await self._call_llm(
                         chain,
-                        {"document": chunk},
+                        {"document": chunk, "query": query},
                     )
 
                 content = raw_output.content.strip()
+                # print("=" * 100)
+                # print(content)
+                # print("=" * 100)
+                # logger.warning(content)
 
             except Exception as e:
                 logger.error(

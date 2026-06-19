@@ -12,6 +12,7 @@ class ResearchFinding(Base, TimestampMixin):
     task_id: Mapped[UUID] = mapped_column(
         ForeignKey("research_tasks.id", ondelete="CASCADE"), nullable=False
     )
+    query: Mapped[str] = mapped_column(Text, nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
     snippet: Mapped[str | None] = mapped_column(Text, nullable=True)

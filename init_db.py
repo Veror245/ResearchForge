@@ -1,4 +1,5 @@
 import asyncio
+from unittest import result
 from sqlalchemy import text
 from backend.core.database import engine, async_session
 from backend.models.base import Base
@@ -14,7 +15,16 @@ async def init_db():
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
         print("✅ Database tables created successfully.")
+        result = await conn.execute(text("""
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_name = 'research_findings'
+    ORDER BY ordinal_position
+"""))
+
+    print([r[0] for r in result.fetchall()])
     await engine.dispose()
 
 if __name__ == "__main__":
     asyncio.run(init_db())
+    print(ResearchFinding.__table__.columns.keys())

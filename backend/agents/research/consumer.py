@@ -109,6 +109,7 @@ class ResearchWorkerConsumer:
                 for item in findings_data:
                     finding = ResearchFinding(
                         task_id=task_uuid,
+                        query=query,
                         url=item["url"],
                         markdown_content=item["markdown"],
                         title="",               # you can extract if available
