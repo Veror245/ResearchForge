@@ -4,10 +4,13 @@ from backend.core.config import settings
 # Our stream names (as defined earlier)
 STREAM_TASKS = "research.tasks"
 STREAM_FINDINGS = "research.findings"
+STREAM_TASK_READY = "research.task_ready"
+STREAM_CLAIMS = "research.claims"
 # We'll add more later (claims, critiques, etc.)
 
 # Consumer group name for research workers
 WORKER_GROUP = "research_workers"
+CLAIM_GROUP = "claim_extractors"
 
 async def get_redis() -> redis.Redis:
     """Return a new Redis connection (use from_url or connection pool)."""

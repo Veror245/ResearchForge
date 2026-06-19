@@ -2,6 +2,8 @@ from enum import Enum
 from uuid import UUID
 from sqlalchemy import String, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from backend.models.claims import Claim
 # from .research_finding import ResearchFinding
 from .base import Base, TimestampMixin, generate_uuid
 import uuid as _uuid
@@ -26,3 +28,5 @@ class ResearchTask(Base, TimestampMixin):
     findings: Mapped[list["ResearchFinding"]] = relationship( # type: ignore
         "ResearchFinding", back_populates="task", lazy="selectin"
     )
+    
+    claims: Mapped[list["Claim"]] = relationship("Claim", back_populates="task", lazy="selectin")

@@ -192,8 +192,9 @@ class ClaimExtraction:
     
     async def extract_claims_from_finding_parallel(
         self,
-        finding: ResearchFinding,
-        query: str,
+        finding: ResearchFinding | None = None,
+        text: str | None = None,
+        query: str | None = None,
     ) -> list[Claim]:
         """
         Extract claims from a single research finding.
@@ -202,7 +203,7 @@ class ClaimExtraction:
         parses the outputs, and returns a combined list of claims.
         """
 
-        markdown_content = finding.markdown_content or ""
+        markdown_content = finding.markdown_content if finding else text
 
         if not markdown_content:
             return []

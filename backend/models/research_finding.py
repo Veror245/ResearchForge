@@ -25,3 +25,5 @@ class ResearchFinding(Base, TimestampMixin):
         "ResearchTask", back_populates="findings"
     )
     
+    claims: Mapped[list["Claim"]] = relationship("Claim", back_populates="finding", lazy="selectin") # type: ignore
+    

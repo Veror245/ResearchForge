@@ -11,6 +11,7 @@ from backend.core.redis_client import (
     ensure_consumer_group,
     STREAM_TASKS,
     STREAM_FINDINGS,
+    STREAM_TASK_READY,
     WORKER_GROUP,
     publish_message,
 )
@@ -127,7 +128,9 @@ class ResearchWorkerConsumer:
                 # Mark task as completed
                 task.status = TaskStatus.COMPLETED
                 await session.commit()
-                logger.info(f"Task {task_uuid} completed, {len(finding_ids)} findings published.")
+                rd = await get_redis()
+                await publish_message(rd, STREAM_TASK_READY, {"task_id": task_id_str})
+                logger.info(f"Task {task_id_str} completed, {len(findings_data)} findings saved.")
                 return True
 
             except Exception as e:
