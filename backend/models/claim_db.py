@@ -32,12 +32,9 @@ class Claim(Base, TimestampMixin):
     evidence: Mapped[str | None] = mapped_column(Text, nullable=True) # supporting snippet
     confidence: Mapped[float] = mapped_column(Float, default=0.5)    # 0.0–1.0
     importance: Mapped[float] = mapped_column(Float, default=5.0)    # 0–10
-    type: Mapped[ClaimType] = mapped_column(
-        SAEnum(ClaimType, name="claim_type_enum", create_type=False),
-        nullable=False,
-        default=ClaimType.FACT,
+    type: Mapped[str] = mapped_column(
+    String(20), nullable=False, default=ClaimType.FACT.value
     )
-
     # Vector embedding for semantic search (1536 dims for OpenAI ada-002, adjust if needed)
     embedding = mapped_column(Vector(1536), nullable=True)
 

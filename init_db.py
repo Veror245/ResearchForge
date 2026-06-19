@@ -13,18 +13,10 @@ async def init_db():
     async with engine.begin() as conn:
         # Enable pgvector extension if not already
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        enum_type_name = "claim_type_enum"
-        await conn.execute(text(f"""
-            DO $$ BEGIN
-                CREATE TYPE {enum_type_name} AS ENUM (
-                    'fact', 'decision', 'metric', 'relationship', 'requirement', 'limitation'
-                );
-            EXCEPTION WHEN duplicate_object THEN null;
-            END $$;
-        """))
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
         print("✅ Database tables created successfully.")
+        print(Base.metadata.tables.keys())
         result = await conn.execute(text("""
     SELECT column_name
     FROM information_schema.columns

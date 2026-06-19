@@ -1,4 +1,5 @@
 import asyncio, json, logging
+import time
 from uuid import UUID
 from sqlalchemy import select
 from redis.asyncio import Redis
@@ -6,6 +7,7 @@ from backend.core.redis_client import (
     get_redis, ensure_consumer_group, STREAM_TASK_READY, STREAM_CLAIMS,
     CLAIM_GROUP, publish_message
 )
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from backend.core.database import async_session
 from backend.core.llm import llm
 from backend.models.research_task import ResearchTask
@@ -39,6 +41,9 @@ class ClaimExtractorConsumer:
                             continue
                         await self.process_task(task_id)
                         await rd.xack(STREAM_TASK_READY, CLAIM_GROUP, msg_id)
+            
+            except RedisTimeoutError:
+                continue
             except Exception as e:
                 logger.error(f"Consumer loop error: {e}", exc_info=True)
                 await asyncio.sleep(1)
@@ -56,7 +61,7 @@ class ClaimExtractorConsumer:
             if not findings:
                 logger.warning(f"No findings for task {task_id_str}")
                 return
-
+            print(f"Task {task_id_str} has {len(findings)} findings. Extracting claims...")
             # Combine markdowns into one giant string, adding separators and URL context
             combined_md = ""
             for f in findings:
@@ -67,23 +72,30 @@ class ClaimExtractorConsumer:
             query_context = task.query
             full_text = f"Research question: {query_context}\n\n{combined_md}"
 
+            print(f"length of full text for claim extraction: {len(combined_md.split())} words")
             # Use your chunking-capable extractor
+            t0 = time.time()
             claims = await self.extractor.extract_claims_from_finding_parallel(text=combined_md, query=query_context)
+            t1 = time.time()
+            print(f"Time taken for claim extraction: {t1 - t0:.2f} seconds")
             # Alternative: add a method to ClaimExtractor that accepts raw text + query
 
             if not claims:
                 logger.info(f"No claims extracted for task {task_id_str}")
                 return
 
+            task_uuid = UUID(task_id_str)
             # Save claims to DB
             claim_ids = []
             for c in claims:
                 claim = Claim(
+                    task_id=task_uuid,
                     finding_id=findings[0].id,  # or a special “task” claim; for simplicity use first finding
                     text=c.claim,
-                    evidence=c.evidence,
-                    source_url="",  # aggregated, so no single URL
+                    evidence=c.evidence,  # aggregated, so no single URL
                     confidence=c.confidence,
+                    importance=c.importance,          # add this
+                    type=c.type.value, 
                 )
                 session.add(claim)
                 await session.flush()

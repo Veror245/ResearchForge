@@ -2398,6 +2398,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "redis" },
     { name = "sqlalchemy" },
+    { name = "tokenizers" },
 ]
 
 [package.metadata]
@@ -2418,6 +2419,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "redis", specifier = ">=8.0.0" },
     { name = "sqlalchemy", specifier = ">=2.0.50" },
+    { name = "tokenizers", specifier = ">=0.23.1" },
 ]
 
 [[package]]

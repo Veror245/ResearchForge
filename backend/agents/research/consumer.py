@@ -105,6 +105,7 @@ class ResearchWorkerConsumer:
                     await session.commit()
                     return True
 
+                md = ""
                 # Create ResearchFinding records and collect IDs
                 finding_ids = []
                 for item in findings_data:
@@ -116,10 +117,13 @@ class ResearchWorkerConsumer:
                         title="",               # you can extract if available
                         snippet="",             # you can pass snippet through worker
                     )
+                    print(f"Adding finding for URL: {item['url']} with markdown length {len(item['markdown'].split())} words")
+                    md += item["markdown"] + "\n\n\n\n"
                     session.add(finding)
                     await session.flush()  # get the generated ID
                     finding_ids.append(str(finding.id))
 
+                print(f"markdown length {len(md.split())} words")
                 # Publish each finding ID to the findings stream
                 rd = await get_redis()
                 for fid in finding_ids:

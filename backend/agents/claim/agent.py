@@ -12,6 +12,11 @@ from pydantic import ValidationError
 import asyncio
 import time
 
+from tokenizers import Tokenizer
+
+# Load a tokenizer (GPT-2 tokenizer is a good generic choice)
+tokenizer = Tokenizer.from_pretrained("gpt2")
+
 logger = logging.getLogger(__name__)
 
 #TODO: fix llm speed
@@ -19,7 +24,7 @@ class ClaimExtraction:
     def __init__(self):
         self.llm = claim_llm
         self.chunker = SentenceChunker(
-                tokenizer="character",     # Default tokenizer (or use "gpt2", etc.)
+                tokenizer="gpt2",     # Default tokenizer (or use "gpt2", etc.)
                 chunk_size=2000,           # Maximum tokens per chunk
                 chunk_overlap=100,         # Overlap between chunks
                 min_sentences_per_chunk=5  # Minimum sentences in each chunk

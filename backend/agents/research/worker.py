@@ -78,7 +78,7 @@ class ResearchWorker:
                 for i, crawl_result in enumerate(crawl_results): # type: ignore
                     if crawl_result.success:
                         result.append({"url": crawl_result.url, "markdown": crawl_result.markdown.fit_markdown})
-                        print(f"Length of markdown for {crawl_result.url}: {len(crawl_result.markdown.fit_markdown.strip())} words")
+                        print(f"Length of markdown for {crawl_result.url}: {len(crawl_result.markdown.fit_markdown.split())} words")
             except Exception as e:
                 print(f"Error occurred while crawling: {e}")
 
