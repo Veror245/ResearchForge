@@ -28,6 +28,7 @@ class ResearchWorkerConsumer:
 
     async def run(self, consumer_id: str = "worker-1"):
         rd = await get_redis()
+        await rd.delete(STREAM_TASKS)
         await ensure_consumer_group(rd, STREAM_TASKS, WORKER_GROUP)
 
         logger.info(f"Worker consumer {consumer_id} started. Listening on {STREAM_TASKS}")

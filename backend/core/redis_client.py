@@ -1,4 +1,5 @@
 import redis.asyncio as redis
+from redis.exceptions import ResponseError
 from backend.core.config import settings
 
 # Our stream names (as defined earlier)
@@ -21,9 +22,10 @@ async def ensure_stream(rd: redis.Redis, stream: str):
     pass  # XADD creates stream automatically
 
 async def ensure_consumer_group(rd: redis.Redis, stream: str, group: str):
-    """Create the consumer group if it doesn't exist. Start from '$' (only new messages)."""
+    """Create consumer group starting from '$' (only new messages).
+    Ignore BUSYGROUP error if group already exists (safe for multiple workers)."""
     try:
-        await rd.xgroup_create(stream, group, id="0", mkstream=True)
+        await rd.xgroup_create(stream, group, id="$", mkstream=True)
     except redis.ResponseError as e:
         if "BUSYGROUP" not in str(e):
             raise
