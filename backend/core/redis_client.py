@@ -25,8 +25,8 @@ async def ensure_stream(rd: redis.Redis, stream: str):
     pass  # XADD creates stream automatically
 
 async def ensure_consumer_group(rd: redis.Redis, stream: str, group: str):
-    """Create consumer group starting from '$' (only new messages).
-    Ignore BUSYGROUP error if group already exists (safe for multiple workers)."""
+    """Create consumer group if it doesn't exist, ignoring BUSYGROUP.
+    Always starts from '$' so only new messages are processed."""
     try:
         await rd.xgroup_create(stream, group, id="$", mkstream=True)
     except redis.ResponseError as e:

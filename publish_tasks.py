@@ -133,7 +133,7 @@ async def main(queries: list[str]):
             raw_md = raw_md.strip()
 
             # 2. Convert to HTML with essential extensions
-            extensions = ["tables", "fenced_code", "codehilite", "nl2br"]
+            extensions = ["tables", "fenced_code", "codehilite"]
             try:
                 html_body = markdown.markdown(raw_md, extensions=extensions, output_format='html')
             except Exception as e:
@@ -215,12 +215,14 @@ async def main(queries: list[str]):
 
             # 4. Write PDF
             try:
-                HTML(string=html_full).write_pdf(f"data/report_{report.id}.pdf")
-                print(f"  PDF saved as report_{report.id}.pdf")
+                HTML(string=html_full).write_pdf(f"data/report_{task.query.replace(' ', '_')}.pdf")
+                print(f"  PDF saved as report_{task.query.replace(' ', '_')}.pdf")
             except Exception as e:
                 print(f"  PDF generation failed: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main(queries=[
-        "Top 10 Anime Series of All Time",
+        "Best Date Spots in Paris for a Romantic Evening?",
     ]))
+    
+#TODO: FIX DOWNSTREAM CONSUMERS

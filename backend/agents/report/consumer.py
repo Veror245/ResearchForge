@@ -77,6 +77,7 @@ class ReportWriterConsumer:
             logger.error(f"Invalid task UUID: {task_id_str}")
             return False
 
+        logger.info(f"Generating report for task {task_id_str}")
         async with async_session() as session:
             task = await session.get(ResearchTask, task_uuid)
             if not task:
