@@ -1,6 +1,6 @@
 from enum import Enum
 from uuid import UUID
-from sqlalchemy import String, Enum as SAEnum
+from sqlalchemy import ForeignKey, String, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.claims import Claim
@@ -24,9 +24,16 @@ class ResearchTask(Base, TimestampMixin):
     status: Mapped[TaskStatus] = mapped_column(
         SAEnum(TaskStatus), default=TaskStatus.PENDING, nullable=False
     )
+    job_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("research_jobs.id", ondelete="SET NULL"), nullable=True
+    )
+
+    job: Mapped["ResearchJob | None"] = relationship("ResearchJob", back_populates="tasks") # type: ignore
 
     findings: Mapped[list["ResearchFinding"]] = relationship( # type: ignore
         "ResearchFinding", back_populates="task", lazy="selectin"
     )
+    
+    reports: Mapped[list["ResearchReport"]] = relationship("ResearchReport", back_populates="task", lazy="selectin") # type: ignore
     
     claims: Mapped[list["Claim"]] = relationship("Claim", back_populates="task", lazy="selectin")
