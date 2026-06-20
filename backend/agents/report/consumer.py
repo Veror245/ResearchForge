@@ -12,6 +12,7 @@ from backend.models.research_finding import ResearchFinding
 from backend.models.claim_db import Claim
 from backend.models.report import ResearchReport
 from backend.agents.report.agent import ReportGenerator, ReportSchema
+import numpy as np
 
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
@@ -97,9 +98,12 @@ class ReportWriterConsumer:
                 # For now, we'll proceed with empty claims (you can change)
             
             md = ""
+            cf = []
             for c in claims:
                 md += f"- {c.text}\n"
                 md += f" {c.evidence}\n\n"
+                cf.append(c.confidence)
+            confidence = np.mean(cf) if cf else 0.0
             # Generate report using your ReportWriter
             try:
                 report = await self.writer.generate_report(
@@ -120,7 +124,7 @@ class ReportWriterConsumer:
                 supporting_evidence=report_data.get("supporting_evidence", ""),
                 counterarguments=report_data.get("counterarguments", ""),
                 final_assessment=report_data.get("final_assessment", ""),
-                confidence_score=report_data.get("confidence_score", 0.0),
+                confidence_score=confidence,
             )
             session.add(report)
             await session.commit()

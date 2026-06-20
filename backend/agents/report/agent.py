@@ -57,7 +57,7 @@ class ReportGenerator:
         Generate a comprehensive research report.
         """
             )
-        ]).partial(format_instructions = self.parser.get_format_instructions())
+        ]).partial(formatting_instructions = self.parser.get_format_instructions())
         
         
 
@@ -122,7 +122,6 @@ class ReportGenerator:
                 methodology=raw_dict.get("methodology", ""),
                 supporting_evidence=raw_dict.get("supporting_evidence", []),
                 final_assessment=raw_dict.get("final_assessment", ""),
-                confidence_score=raw_dict.get("confidence_score", 0.0),
             )
             logger.debug("Level 3 (raw load) succeeded")
             return report
