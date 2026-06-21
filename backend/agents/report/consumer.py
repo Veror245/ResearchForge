@@ -77,7 +77,7 @@ class ReportWriterConsumer:
             logger.error(f"Invalid task UUID: {task_id_str}")
             return False
 
-        logger.info(f"Generating report for task {task_id_str}")
+        
         async with async_session() as session:
             task = await session.get(ResearchTask, task_uuid)
             if not task:
@@ -97,7 +97,7 @@ class ReportWriterConsumer:
                 logger.warning(f"No claims found for task {task_id_str} after waiting")
                 # You might still generate a report without claims, or skip
                 # For now, we'll proceed with empty claims (you can change)
-            
+            logger.info(f"Generating report for task {task_id_str}")
             md = ""
             cf = []
             for c in claims:

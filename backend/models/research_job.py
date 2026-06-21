@@ -23,3 +23,5 @@ class ResearchJob(Base, TimestampMixin):
     tasks: Mapped[list["ResearchTask"]] = relationship( # type: ignore
         "ResearchTask", back_populates="job", lazy="selectin"
     )
+    
+    

@@ -37,3 +37,5 @@ class ResearchTask(Base, TimestampMixin):
     reports: Mapped[list["ResearchReport"]] = relationship("ResearchReport", back_populates="task", lazy="selectin") # type: ignore
     
     claims: Mapped[list["Claim"]] = relationship("Claim", back_populates="task", lazy="selectin")
+    
+    critiques: Mapped[list["Critique"]] = relationship("Critique", back_populates="task", lazy="selectin") # type: ignore

@@ -34,6 +34,11 @@ class Claim(BaseModel):
     type: ClaimType = Field(
         description="The type of claim, such as fact, decision, metric, etc."
     )
+    
+    chunk: str | None = Field(
+        default=None,
+        description="Optional chunk of text from which the claim was extracted"
+    )
 
 class ClaimsResponse(BaseModel):
     claims: list[Claim] = Field(

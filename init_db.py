@@ -8,6 +8,12 @@ from backend.models.base import Base
 from backend.models.research_task import ResearchTask      # noqa: F401
 from backend.models.research_finding import ResearchFinding  # noqa: F401
 from backend.models.claim_db import Claim, ClaimType       # noqa: F401
+from backend.models.research_job import ResearchJob        # noqa: F401
+from backend.models.report import ResearchReport            # noqa: F401
+from backend.models.critic import Critique, Severity        # noqa: F401
+
+import backend.models
+
 
 async def init_db():
     async with engine.begin() as conn:

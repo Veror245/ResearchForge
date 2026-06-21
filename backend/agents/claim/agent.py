@@ -255,6 +255,9 @@ class ClaimExtraction:
             claims = self._titanium_parse_claims(
                 content
             )
+            for c in claims:
+                if c.chunk is None:
+                    c.chunk = chunk  # attach the chunk text to the claim
 
             logger.info(
                 f"Chunk {chunk_idx + 1}: "

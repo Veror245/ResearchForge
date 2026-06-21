@@ -37,7 +37,10 @@ class Claim(Base, TimestampMixin):
     )
     # Vector embedding for semantic search (1536 dims for OpenAI ada-002, adjust if needed)
     embedding = mapped_column(Vector(1536), nullable=True)
+    chunk = mapped_column(Text, nullable=True)  # optional chunk of text from which the claim was extracted
+
 
     # Relationships (optional, for ORM convenience)
     task: Mapped["ResearchTask"] = relationship("ResearchTask", back_populates="claims") # type: ignore
     finding: Mapped["ResearchFinding"] = relationship("ResearchFinding", back_populates="claims") # type: ignore
+    critiques: Mapped[list["Critique"]] = relationship("Critique", back_populates="claim", cascade="all, delete-orphan") # type: ignore

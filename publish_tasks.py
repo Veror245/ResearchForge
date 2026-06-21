@@ -4,6 +4,7 @@ from sqlalchemy import select
 from langchain_core.prompts import ChatPromptTemplate
 from backend.core.redis_client import get_redis, STREAM_TASKS, publish_message
 from backend.core.database import async_session
+from backend.models.critic import Critique
 from backend.models.research_task import ResearchTask
 from backend.models.claim_db import Claim
 from backend.models.report import ResearchReport
@@ -50,6 +51,30 @@ async def wait_for_report(task_id: UUID, timeout: float = 300):
                 return True
         await asyncio.sleep(1)
         elapsed += 1
+    return False
+    
+async def wait_for_critiques(task_id: UUID, timeout: float = 300):
+    """Wait until every claim of a task has at least one critique."""
+    elapsed = 0
+    while elapsed < timeout:
+        async with async_session() as session:
+            # How many claims does this task have?
+            claim_count = (await session.execute(
+                select(Claim).where(Claim.task_id == task_id)
+            )).scalars().all()
+            claim_total = len(claim_count)
+
+            # How many critiques exist for any claim of this task?
+            crit_count = (await session.execute(
+                select(Critique).join(Claim, Critique.claim_id == Claim.id)
+                .where(Claim.task_id == task_id)
+            )).scalars().all()
+            crit_total = len(crit_count)
+
+            if crit_total >= claim_total and claim_total > 0:
+                return True
+        await asyncio.sleep(2)   # give the critic more time between checks
+        elapsed += 2
     return False
 
 def clean_markdown_for_pdf(raw_md: str) -> str:
@@ -163,128 +188,156 @@ async def main(queries: list[str]):
                 print(f"    Type: {claim.type}")
                 print("    ---")
     
-    print("Waiting for report generation to complete...")
+    
+    print("Waiting for critiques to complete...")
     for tid in task_ids:
-        found = await wait_for_report(tid, timeout=600)
+        found = await wait_for_critiques(tid, timeout=600)
         if not found:
-            print(f"Warning: no report generated for task {tid} after timeout.")
+            print(f"Warning: no critiques found for task {tid} after timeout.")
             
     async with async_session() as session:
         for tid in task_ids:
             task = await session.get(ResearchTask, tid)
             if not task:
                 continue
-            print(f"\nGenerating PDF for task: {task.query} (status: {task.status})")
-            stmt = select(ResearchReport).where(ResearchReport.task_id == tid)
+            print(f"\nCritiques for task: {task.query} (status: {task.status})")
+            stmt = select(Critique).join(Claim, Critique.claim_id == Claim.id).where(Claim.task_id == tid)
             result = await session.execute(stmt)
-            report = result.scalars().first()
-            if not report:
-                print("  No report found.")
+            critiques = result.scalars().all()
+            if not critiques:
+                print("  No critiques found.")
                 continue
-
-            print(f"  Report ID: {report.id}")
-            print(f"  Executive Summary: {report.executive_summary[:200]}...")
+            for i, critique in enumerate(critiques, 1):
+                print(f"  Critique {i}:")
+                print(f"    Critic: {critique.critic_name}")
+                print(f"    Text: {critique.critique_text[:200]}...")
+                print(f"    Score: {critique.score:.2f}")
+                print(f"    Severity: {critique.severity}")
+                print(f"    Evidence: {(critique.evidence or 'N/A')[:200]}...")
+                print("    ---")
+    
+    # print("Waiting for report generation to complete...")
+    # for tid in task_ids:
+    #     found = await wait_for_report(tid, timeout=600)
+    #     if not found:
+    #         print(f"Warning: no report generated for task {tid} after timeout.")
             
-            print(report)
-            print(report.to_markdown()[:500])
+    # async with async_session() as session:
+    #     for tid in task_ids:
+    #         task = await session.get(ResearchTask, tid)
+    #         if not task:
+    #             continue
+    #         print(f"\nGenerating PDF for task: {task.query} (status: {task.status})")
+    #         stmt = select(ResearchReport).where(ResearchReport.task_id == tid)
+    #         result = await session.execute(stmt)
+    #         report = result.scalars().first()
+    #         if not report:
+    #             print("  No report found.")
+    #             continue
 
-            # 1. Get raw markdown and clean it up
-            raw_md = report.to_markdown() if hasattr(report, 'to_markdown') else ""
-            raw_md = clean_markdown_for_pdf(raw_md)
-            # Remove multiple consecutive blank lines, but keep two newlines for paragraphs
-            raw_md = re.sub(r'\n{3,}', '\n\n', raw_md)
-            # Ensure each heading has a leading newline (except start)
-            raw_md = re.sub(r'([^\n])\n(#{1,6} )', r'\1\n\n\2', raw_md)
-            # Trim excessive whitespace
-            raw_md = raw_md.strip()
+    #         print(f"  Report ID: {report.id}")
+    #         print(f"  Executive Summary: {report.executive_summary[:200]}...")
+            
+    #         print(report)
+    #         print(report.to_markdown()[:500])
 
-            # 2. Convert to HTML with essential extensions
-            extensions = ["tables", "fenced_code", "codehilite", "nl2br"]
-            try:
-                html_body = markdown.markdown(raw_md, extensions=extensions, output_format='html')
-            except Exception as e:
-                print(f"  Markdown conversion error: {e}")
-                # Fallback: render as plain text with <pre>
-                html_body = f"<pre>{raw_md}</pre>"
+    #         # 1. Get raw markdown and clean it up
+    #         raw_md = report.to_markdown() if hasattr(report, 'to_markdown') else ""
+    #         raw_md = clean_markdown_for_pdf(raw_md)
+    #         # Remove multiple consecutive blank lines, but keep two newlines for paragraphs
+    #         raw_md = re.sub(r'\n{3,}', '\n\n', raw_md)
+    #         # Ensure each heading has a leading newline (except start)
+    #         raw_md = re.sub(r'([^\n])\n(#{1,6} )', r'\1\n\n\2', raw_md)
+    #         # Trim excessive whitespace
+    #         raw_md = raw_md.strip()
 
-            # 3. Full HTML template
-            html_full = f"""<!DOCTYPE html>
-    <html lang="en">
-    <head>
-    <meta charset="utf-8">
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            margin: 50px;
-            line-height: 1.7;
-            color: #222;
-        }}
-        h1 {{
-            text-align: center;
-            color: #1f2937;
-            margin-bottom: 40px;
-        }}
-        h2 {{
-            color: #374151;
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 6px;
-            margin-top: 30px;
-        }}
-        h3 {{
-            color: #4b5563;
-            margin-top: 20px;
-        }}
-        table {{
-            border-collapse: collapse;
-            width: 100%;
-            margin: 20px 0;
-        }}
-        table, th, td {{
-            border: 1px solid #ddd;
-        }}
-        th, td {{
-            padding: 8px;
-            text-align: left;
-        }}
-        th {{
-            background-color: #f9fafb;
-        }}
-        pre {{
-            background: #f5f5f5;
-            padding: 12px;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }}
-        code {{
-            font-family: monospace;
-        }}
-        blockquote {{
-            border-left: 4px solid #ccc;
-            padding-left: 12px;
-            color: #555;
-            margin: 20px 0;
-        }}
-        ul, ol {{
-            margin: 10px 0;
-            padding-left: 30px;
-        }}
-        li {{
-            margin: 6px 0;
-        }}
-    </style>
-    </head>
-    <body>
-    {html_body}
-    </body>
-    </html>"""
+    #         # 2. Convert to HTML with essential extensions
+    #         extensions = ["tables", "fenced_code", "codehilite", "nl2br"]
+    #         try:
+    #             html_body = markdown.markdown(raw_md, extensions=extensions, output_format='html')
+    #         except Exception as e:
+    #             print(f"  Markdown conversion error: {e}")
+    #             # Fallback: render as plain text with <pre>
+    #             html_body = f"<pre>{raw_md}</pre>"
 
-            # 4. Write PDF
-            try:
-                HTML(string=html_full).write_pdf(f"data/report_{task.query.replace(' ', '_')}.pdf")
-                print(f"  PDF saved as report_{task.query.replace(' ', '_')}.pdf")
-            except Exception as e:
-                print(f"  PDF generation failed: {e}")
+    #         # 3. Full HTML template
+    #         html_full = f"""<!DOCTYPE html>
+    # <html lang="en">
+    # <head>
+    # <meta charset="utf-8">
+    # <style>
+    #     body {{
+    #         font-family: Arial, sans-serif;
+    #         margin: 50px;
+    #         line-height: 1.7;
+    #         color: #222;
+    #     }}
+    #     h1 {{
+    #         text-align: center;
+    #         color: #1f2937;
+    #         margin-bottom: 40px;
+    #     }}
+    #     h2 {{
+    #         color: #374151;
+    #         border-bottom: 2px solid #e5e7eb;
+    #         padding-bottom: 6px;
+    #         margin-top: 30px;
+    #     }}
+    #     h3 {{
+    #         color: #4b5563;
+    #         margin-top: 20px;
+    #     }}
+    #     table {{
+    #         border-collapse: collapse;
+    #         width: 100%;
+    #         margin: 20px 0;
+    #     }}
+    #     table, th, td {{
+    #         border: 1px solid #ddd;
+    #     }}
+    #     th, td {{
+    #         padding: 8px;
+    #         text-align: left;
+    #     }}
+    #     th {{
+    #         background-color: #f9fafb;
+    #     }}
+    #     pre {{
+    #         background: #f5f5f5;
+    #         padding: 12px;
+    #         overflow-x: auto;
+    #         white-space: pre-wrap;
+    #         word-wrap: break-word;
+    #     }}
+    #     code {{
+    #         font-family: monospace;
+    #     }}
+    #     blockquote {{
+    #         border-left: 4px solid #ccc;
+    #         padding-left: 12px;
+    #         color: #555;
+    #         margin: 20px 0;
+    #     }}
+    #     ul, ol {{
+    #         margin: 10px 0;
+    #         padding-left: 30px;
+    #     }}
+    #     li {{
+    #         margin: 6px 0;
+    #     }}
+    # </style>
+    # </head>
+    # <body>
+    # {html_body}
+    # </body>
+    # </html>"""
+
+    #         # 4. Write PDF
+    #         try:
+    #             HTML(string=html_full).write_pdf(f"data/report_{task.query.replace(' ', '_')}.pdf")
+    #             print(f"  PDF saved as report_{task.query.replace(' ', '_')}.pdf")
+    #         except Exception as e:
+    #             print(f"  PDF generation failed: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

@@ -1,4 +1,7 @@
 docker exec -it researchforge-db psql -U forge -d researchforge -c "
+DROP TABLE  claims, research_findings, research_tasks, research_jobs, research_reports, critiques CASCADE;"
+
+docker exec -it researchforge-db psql -U forge -d researchforge -c "
 TRUNCATE TABLE claims, research_findings, research_tasks CASCADE;
 "
 

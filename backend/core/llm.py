@@ -34,3 +34,13 @@ claim_llm = ChatOpenAI(
     api_key=os.getenv("OLLAMA_API_KEY", "dummy"), # type: ignore
     max_retries=3,
 )
+
+
+
+critic_llm = ChatOpenAI(
+    model="devstral-small-2:24b-cloud",  # Swap to your preferred local model if needed
+    temperature=0.0,
+    api_key=os.getenv("OLLAMA_API_KEY", "dummy"), # type: ignore
+    base_url="https://ollama.com/v1",
+    max_retries=3
+)

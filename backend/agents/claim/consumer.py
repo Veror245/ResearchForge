@@ -95,7 +95,8 @@ class ClaimExtractorConsumer:
                     evidence=c.evidence,  # aggregated, so no single URL
                     confidence=c.confidence,
                     importance=c.importance,          # add this
-                    type=c.type.value, 
+                    type=c.type.value,
+                    chunk=c.chunk  # store the chunk text if available 
                 )
                 session.add(claim)
                 await session.flush()
