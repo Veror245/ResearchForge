@@ -29,31 +29,33 @@ class ResearchReport(Base, TimestampMixin):
 
     
     def _sanitize_field(self, value: str | None) -> str:
-        """Clean LLM artifacts: close code fences, remove leading/trailing
-        stray headings, and normalise whitespace."""
         if not value:
             return "N/A"
 
         value = value.strip()
 
-        # Remove any leading H1 heading (e.g. "# Research Report: ...")
-        # This prevents an extra title from appearing inside a section.
+        # Remove stray H1 titles
         value = re.sub(r'^#\s+.*?\n+', '', value, count=1)
 
-        # Remove trailing JSON brackets or code fences
+        # Remove stray numbered list markers on their own lines (LLM artifact)
+        # e.g. "1.\n2.\n3.\n" inserted mid-sentence by the model
+        value = re.sub(r'^[ \t]*\d+\.[ \t]*\n', '', value, flags=re.MULTILINE)
+        value = re.sub(r'^[ \t]*\d+\.[ \t]*$', '', value, flags=re.MULTILINE)
+
+        # Remove trailing JSON brackets / code fences
         value = re.sub(r'\s*[\[\}]\s*$', '', value)
         value = re.sub(r'^```[a-z]*\n', '', value)
         value = re.sub(r'\n```$', '', value)
 
-        # Close any unclosed code fences
+        # Close unclosed code fences
         open_fences = len(re.findall(r'^```', value, re.MULTILINE))
         if open_fences % 2 != 0:
             value += "\n```"
 
-        # Collapse multiple blank lines (keep at most two)
+        # Remove excessive blank lines (keep at most one consecutive blank line)
         value = re.sub(r'\n{3,}', '\n\n', value)
+
         return value.strip()
-    
     
     def to_markdown(self) -> str:
         confidence = (

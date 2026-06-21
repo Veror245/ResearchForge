@@ -40,9 +40,26 @@ class ReportGenerator:
         9. Do not invent facts that are not supported by the provided evidence.
         10. Write as if the report will be reviewed by decision-makers.
 
+        Markdown Formatting Rules (must be followed exactly):
+
+        - Write in **plain paragraphs** with no manual line breaks.
+        - Do **not** press Enter to wrap text at a certain width. Let the text flow naturally.
+        - Use **numbered lists** only as: `1.`, `2.`, etc., each on a new line.
+        - Use **bullet lists** only as: `- ` (hyphen + space), each on a new line.
+        - Never use special bullet characters like `•`, `◦`, `▪`. These are forbidden.
+        - A blank line must separate paragraphs and list blocks.
+
+        Example of a CORRECT list:
+
+        1. This is the first finding. It can span multiple lines, but the text is continuous.
+        2. This is the second finding.
+        3. Third finding.
+
+        Example of an INCORRECT approach (DO NOT DO THIS):
+        • First item • Second item   ← wrong bullet, wrong line breaks
+
         Output Structure:
         {formatting_instructions}
-       
         """
             ),
             (
@@ -57,7 +74,7 @@ class ReportGenerator:
         Generate a comprehensive research report.
         """
             )
-        ]).partial(formatting_instructions = self.parser.get_format_instructions())
+        ]).partial(formatting_instructions=self.parser.get_format_instructions())
         
         
 

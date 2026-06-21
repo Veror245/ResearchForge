@@ -11,6 +11,7 @@ from backend.core.llm import llm
 import markdown
 from weasyprint import HTML
 import re
+import sys
 import backend.models
 
 async def wait_for_tasks(task_ids: list[UUID], timeout: float = 300):
@@ -50,6 +51,67 @@ async def wait_for_report(task_id: UUID, timeout: float = 300):
         await asyncio.sleep(1)
         elapsed += 1
     return False
+
+def clean_markdown_for_pdf(raw_md: str) -> str:
+    """Fix common LLM markdown mistakes so the PDF conversion works properly."""
+
+    # 1. Replace forbidden bullet characters with proper markdown bullets
+    raw_md = re.sub(r'^[\s]*[•◦▪▹▸]\s*', '- ', raw_md, flags=re.MULTILINE)
+
+    # 2. Remove stray numbered list markers on their own lines (LLM artifact)
+    #    These lines contain ONLY a number+period with no actual content.
+    #    We include the trailing newline so surrounding text rejoins seamlessly.
+    raw_md = re.sub(r'^[ \t]*\d+\.[ \t]*\n', '', raw_md, flags=re.MULTILINE)
+    raw_md = re.sub(r'^[ \t]*\d+\.[ \t]*$', '', raw_md, flags=re.MULTILINE)
+
+    # 3. Split labeled items into their own paragraphs.
+    #    Detect a "Label Name:" pattern (title-case phrase, 3-51 chars) at the
+    #    start of a line and insert a blank line before it if missing.
+    #    The (?<!\n) lookbehind prevents double-blanking.
+    raw_md = re.sub(
+        r'(?<!\n)\n(?=[A-Z][\w\s.\-/&()]{2,50}:\s)',
+        '\n\n',
+        raw_md,
+    )
+
+    # 4. Reflow paragraphs: collapse single newlines into spaces,
+    #    but preserve double newlines (paragraph separators).
+    paragraphs = re.split(r'\n\s*\n', raw_md)
+    cleaned = []
+    for p in paragraphs:
+        p = p.strip()
+        if not p:
+            continue
+        # List items: preserve the marker, reflow the wrapped content
+        if re.match(r'^\s*(\d+\.\s|[-*]\s)', p):
+            lines = p.split('\n')
+            first_line = lines[0]
+            rest = ' '.join(line.strip() for line in lines[1:])
+            cleaned.append(first_line + (' ' + rest if rest else ''))
+        else:
+            # Regular paragraph: merge hard-wrapped lines into one
+            p = re.sub(r'\n', ' ', p)
+            p = re.sub(r' +', ' ', p)
+            cleaned.append(p)
+
+    result = '\n\n'.join(cleaned)
+
+    # 5. Bold labeled items for better readability in the PDF
+    #    "Resource Inefficiency:" → "**Resource Inefficiency:**"
+    result = re.sub(
+        r'^([A-Z][\w\s.\-/&()]{2,50}:)',
+        r'**\1**',
+        result,
+        flags=re.MULTILINE,
+    )
+
+    # 6. Ensure blank lines before lists if missing
+    result = re.sub(r'([^\n])\n(\d+\.\s|[-*]\s)', r'\1\n\n\2', result)
+
+    # 7. Remove excessive blank lines (more than one)
+    result = re.sub(r'\n{3,}', '\n\n', result)
+
+    return result
 
 async def main(queries: list[str]):
     rd = await get_redis()
@@ -122,9 +184,13 @@ async def main(queries: list[str]):
 
             print(f"  Report ID: {report.id}")
             print(f"  Executive Summary: {report.executive_summary[:200]}...")
+            
+            print(report)
+            print(report.to_markdown()[:500])
 
             # 1. Get raw markdown and clean it up
             raw_md = report.to_markdown() if hasattr(report, 'to_markdown') else ""
+            raw_md = clean_markdown_for_pdf(raw_md)
             # Remove multiple consecutive blank lines, but keep two newlines for paragraphs
             raw_md = re.sub(r'\n{3,}', '\n\n', raw_md)
             # Ensure each heading has a leading newline (except start)
@@ -133,7 +199,7 @@ async def main(queries: list[str]):
             raw_md = raw_md.strip()
 
             # 2. Convert to HTML with essential extensions
-            extensions = ["tables", "fenced_code", "codehilite"]
+            extensions = ["tables", "fenced_code", "codehilite", "nl2br"]
             try:
                 html_body = markdown.markdown(raw_md, extensions=extensions, output_format='html')
             except Exception as e:
@@ -221,8 +287,12 @@ async def main(queries: list[str]):
                 print(f"  PDF generation failed: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main(queries=[
-        "Best Date Spots in Paris for a Romantic Evening?",
-    ]))
-    
+    if len(sys.argv) > 1:
+        queries = sys.argv[1:]
+    else:
+        queries = [
+            "What Happens Due to O3 Deficiency in Humans ?",
+        ]
+    asyncio.run(main(queries=queries))
+
 #TODO: FIX DOWNSTREAM CONSUMERS
