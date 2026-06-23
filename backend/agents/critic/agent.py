@@ -166,7 +166,7 @@ class CritiqueAgent:
         return critiques
         
     
-    async def parallel_critique(self, input: list[dict]) -> list[CritiqueSchema]:
+    async def parallel_critique(self, input: list[dict]) -> list[list[CritiqueSchema]]:
         # input_dict = {
         #     "claim_text": claim_text,
         #     "evidence_text": evidence_text,
@@ -178,13 +178,13 @@ class CritiqueAgent:
         tasks = [self.process_critique(index, input_dict, total) for index, input_dict in enumerate(input)]  # Adjust the number of parallel tasks as needed
         results = await asyncio.gather(*tasks)
         
-        all_critiques : list[CritiqueSchema] = []
+        all_critiques : list[list[CritiqueSchema]] = []
         for r in results:
             if isinstance(r, Exception):
                 logger.error(
                     f"Task failed: {r}"
                 )
                 continue
-            all_critiques.extend(r) 
+            all_critiques.append(r) 
             
         return all_critiques

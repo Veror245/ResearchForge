@@ -267,6 +267,7 @@ class CritiqueConsumer:
                         severity=crit_data.severity.value if hasattr(crit_data.severity, 'value') else str(crit_data.severity or "low"),
                     )
                     session.add(critique)
+            await session.commit()
             logger.info(f"Task {task_id_str}: saved critiques for {len(claims)} claims")
 
         rd = await get_redis()
