@@ -9,6 +9,7 @@ STREAM_TASK_READY = "research.task_ready"
 STREAM_CLAIMS = "research.claims"
 STREAM_REPORTS = "research.reports"  # New stream for reports,
 STREAM_CRITIQUES = "research.critiques"  # New stream for critiques
+STREAM_TASK_EVENTS = "research.task_events"
 
 # We'll add more later (claims, critiques, etc.)
 

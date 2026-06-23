@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import select
 from redis.asyncio import Redis
 from backend.core.redis_client import (
-    get_redis, ensure_consumer_group, STREAM_TASK_READY, STREAM_CLAIMS,
+    STREAM_TASK_EVENTS, get_redis, ensure_consumer_group, STREAM_TASK_READY, STREAM_CLAIMS,
     CLAIM_GROUP, publish_message
 )
 from redis.exceptions import TimeoutError as RedisTimeoutError
@@ -23,24 +23,27 @@ class ClaimExtractorConsumer:
 
     async def run(self, consumer_id: str = "claim-extractor-1"):
         rd = await get_redis()
-        await ensure_consumer_group(rd, STREAM_TASK_READY, CLAIM_GROUP)
+        await ensure_consumer_group(rd, STREAM_TASK_EVENTS, CLAIM_GROUP)
         logger.info("ClaimExtractor started, listening on task_ready stream.")
         while True:
             try:
                 messages = await rd.xreadgroup(
                     groupname=CLAIM_GROUP, consumername=consumer_id,
-                    streams={STREAM_TASK_READY: ">"}, count=1, block=5000
+                    streams={STREAM_TASK_EVENTS: ">"}, count=1, block=5000
                 )
                 if not messages:
                     continue
                 for stream_name, msg_list in messages:
                     for msg_id, fields in msg_list: # type: ignore
+                        if fields.get("event") != "research_completed":
+                            await rd.xack(STREAM_TASK_EVENTS, CLAIM_GROUP, msg_id)
+                            continue
                         task_id = fields.get("task_id")
                         if not task_id:
-                            await rd.xack(STREAM_TASK_READY, CLAIM_GROUP, msg_id)
+                            await rd.xack(STREAM_TASK_EVENTS, CLAIM_GROUP, msg_id)
                             continue
                         await self.process_task(task_id)
-                        await rd.xack(STREAM_TASK_READY, CLAIM_GROUP, msg_id)
+                        await rd.xack(STREAM_TASK_EVENTS, CLAIM_GROUP, msg_id)
             
             except RedisTimeoutError:
                 continue
@@ -105,6 +108,12 @@ class ClaimExtractorConsumer:
 
             # Publish claim IDs to research.claims stream
             rd = await get_redis()
-            for cid in claim_ids:
-                await publish_message(rd, STREAM_CLAIMS, {"claim_id": cid})
+            # for cid in claim_ids:
+            #     await publish_message(rd, STREAM_CLAIMS, {"claim_id": cid})
+            
+            await publish_message(rd,   STREAM_TASK_EVENTS, {
+                "task_id": task_id_str,
+                "event": "claims_completed"
+            })
+            
             logger.info(f"Task {task_id_str}: {len(claims)} claims extracted.")

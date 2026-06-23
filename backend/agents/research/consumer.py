@@ -7,6 +7,7 @@ from redis.asyncio import Redis
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from backend.core.redis_client import (
+    STREAM_TASK_EVENTS,
     get_redis,
     ensure_consumer_group,
     STREAM_TASKS,
@@ -135,8 +136,16 @@ class ResearchWorkerConsumer:
                 rd = await get_redis()
                 await publish_message(rd, STREAM_TASK_READY, {"task_id": task_id_str})
                 logger.info(f"Task {task_id_str} completed, {len(findings_data)} findings saved.")
+                
+                await publish_message(rd, STREAM_TASK_EVENTS, {
+                    "task_id": task_id_str,
+                    "event": "research_completed"
+                })
+                
                 return True
 
+            
+  
             except Exception as e:
                 logger.error(f"Task {task_uuid} failed: {e}", exc_info=True)
                 task.status = TaskStatus.FAILED

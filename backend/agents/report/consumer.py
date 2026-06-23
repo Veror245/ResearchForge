@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from redis.asyncio import Redis
 from backend.core.redis_client import (
-    get_redis, ensure_consumer_group, STREAM_TASK_READY, STREAM_REPORTS,
+    STREAM_TASK_EVENTS, get_redis, ensure_consumer_group, STREAM_TASK_READY, STREAM_REPORTS,
     REPORT_GROUP, publish_message
 )
 from backend.core.database import async_session
@@ -27,29 +27,32 @@ class ReportWriterConsumer:
 
     async def run(self, consumer_id: str = "report-writer-1"):
         rd = await get_redis()
-        await ensure_consumer_group(rd, STREAM_TASK_READY, REPORT_GROUP)
+        await ensure_consumer_group(rd, STREAM_TASK_EVENTS, REPORT_GROUP)
         logger.info("Report Writer started. Waiting for task_ready messages.")
 
         while True:
             try:
                 messages = await rd.xreadgroup(
                     groupname=REPORT_GROUP, consumername=consumer_id,
-                    streams={STREAM_TASK_READY: ">"}, count=1, block=5000
+                    streams={STREAM_TASK_EVENTS: ">"}, count=1, block=5000
                 )
                 if not messages:
                     continue
                 for stream_name, msg_list in messages:
                     for msg_id, fields in msg_list: # type: ignore
+                        if fields.get("event") != "critiques_completed":
+                            await rd.xack(STREAM_TASK_EVENTS, REPORT_GROUP, msg_id)
+                            continue
                         task_id = fields.get("task_id")
                         if not task_id:
-                            await rd.xack(STREAM_TASK_READY, REPORT_GROUP, msg_id)
+                            await rd.xack(STREAM_TASK_EVENTS, REPORT_GROUP, msg_id)
                             continue
                         success = await self.process_report_for_task(task_id)
                         if success:
-                            await rd.xack(STREAM_TASK_READY, REPORT_GROUP, msg_id)
+                            await rd.xack(STREAM_TASK_EVENTS, REPORT_GROUP, msg_id)
                         else:
                             logger.error(f"Report for task {task_id} could not be generated, skipping.")
-                            await rd.xack(STREAM_TASK_READY, REPORT_GROUP, msg_id)
+                            await rd.xack(STREAM_TASK_EVENTS, REPORT_GROUP, msg_id)
             except RedisTimeoutError:
                 continue                
             except Exception as e:
@@ -92,7 +95,7 @@ class ReportWriterConsumer:
                 return False
 
             # Wait for claims to be ready
-            claims = await self.wait_for_claims(task_uuid, timeout=300)
+            claims = await self.wait_for_claims(task_uuid, timeout=5)
             if not claims:
                 logger.warning(f"No claims found for task {task_id_str} after waiting")
                 # You might still generate a report without claims, or skip
@@ -132,6 +135,9 @@ class ReportWriterConsumer:
 
             # Publish to reports stream
             rd = await get_redis()
-            await publish_message(rd, STREAM_REPORTS, {"report_id": str(report.id)})
+            await publish_message(rd, STREAM_TASK_EVENTS, {
+                "task_id": task_id_str,
+                "event": "report_completed"
+            })
             logger.info(f"Report generated for task {task_id_str}")
             return True
