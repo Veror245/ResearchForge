@@ -26,6 +26,7 @@ class ResearchReport(Base, TimestampMixin):
     confidence_score: Mapped[float] = mapped_column(Float, default=0.0)
 
     task: Mapped["ResearchTask"] = relationship(back_populates="reports") # type: ignore
+    job: Mapped["ResearchJob"] = relationship(back_populates="reports") # type: ignore
 
     
     def _sanitize_field(self, value: str | None) -> str:

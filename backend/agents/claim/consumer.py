@@ -4,12 +4,13 @@ from uuid import UUID
 from sqlalchemy import select
 from redis.asyncio import Redis
 from backend.core.redis_client import (
-    STREAM_TASK_EVENTS, get_redis, ensure_consumer_group, STREAM_TASK_READY, STREAM_CLAIMS,
+    STREAM_TASK_EVENTS, get_redis, ensure_consumer_group, STREAM_TASK_READY, STREAM_CLAIMS, STREAM_JOBS,
     CLAIM_GROUP, publish_message
 )
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from backend.core.database import async_session
 from backend.core.llm import llm
+from backend.models.research_job import ResearchJob
 from backend.models.research_task import ResearchTask
 from backend.models.research_finding import ResearchFinding
 from backend.models.claim_db import Claim
@@ -17,33 +18,35 @@ from backend.agents.claim.agent import ClaimExtraction  # your class
 
 logger = logging.getLogger(__name__)
 
+STREAM = STREAM_TASK_EVENTS
+
 class ClaimExtractorConsumer:
     def __init__(self):
         self.extractor = ClaimExtraction()   # uses your improved prompt and Titanium parsing
 
     async def run(self, consumer_id: str = "claim-extractor-1"):
         rd = await get_redis()
-        await ensure_consumer_group(rd, STREAM_TASK_EVENTS, CLAIM_GROUP)
+        await ensure_consumer_group(rd, STREAM, CLAIM_GROUP)
         logger.info("ClaimExtractor started, listening on task_ready stream.")
         while True:
             try:
                 messages = await rd.xreadgroup(
                     groupname=CLAIM_GROUP, consumername=consumer_id,
-                    streams={STREAM_TASK_EVENTS: ">"}, count=1, block=5000
+                    streams={STREAM: ">"}, count=1, block=5000
                 )
                 if not messages:
                     continue
                 for stream_name, msg_list in messages:
                     for msg_id, fields in msg_list: # type: ignore
-                        if fields.get("event") != "research_completed":
-                            await rd.xack(STREAM_TASK_EVENTS, CLAIM_GROUP, msg_id)
+                        if fields.get("event") != "job_researched":
+                            await rd.xack(STREAM, CLAIM_GROUP, msg_id)
                             continue
-                        task_id = fields.get("task_id")
-                        if not task_id:
-                            await rd.xack(STREAM_TASK_EVENTS, CLAIM_GROUP, msg_id)
+                        job_id = fields.get("job_id")
+                        if not job_id:
+                            await rd.xack(STREAM, CLAIM_GROUP, msg_id)
                             continue
-                        await self.process_task(task_id)
-                        await rd.xack(STREAM_TASK_EVENTS, CLAIM_GROUP, msg_id)
+                        await self.process_task(job_id)
+                        await rd.xack(STREAM, CLAIM_GROUP, msg_id)
             
             except RedisTimeoutError:
                 continue
@@ -51,20 +54,20 @@ class ClaimExtractorConsumer:
                 logger.error(f"Consumer loop error: {e}", exc_info=True)
                 await asyncio.sleep(1)
 
-    async def process_task(self, task_id_str: str):
+    async def process_task(self, job_id_str: str):
         async with async_session() as session:
-            task = await session.get(ResearchTask, UUID(task_id_str))
-            if not task:
+            job = await session.get(ResearchJob, UUID(job_id_str))
+            if not job:
                 return
 
-            # Fetch all findings for this task
-            stmt = select(ResearchFinding).where(ResearchFinding.task_id == task.id)
+            # Fetch all findings for this job
+            stmt = select(ResearchFinding).where(ResearchFinding.job_id == job.id)
             findings = (await session.execute(stmt)).scalars().all()
 
             if not findings:
-                logger.warning(f"No findings for task {task_id_str}")
+                logger.warning(f"No findings for job {job_id_str}")
                 return
-            print(f"Task {task_id_str} has {len(findings)} findings. Extracting claims...")
+            print(f"job {job_id_str} has {len(findings)} findings. Extracting claims...")
             # Combine markdowns into one giant string, adding separators and URL context
             combined_md = ""
             for f in findings:
@@ -72,7 +75,7 @@ class ClaimExtractorConsumer:
                     combined_md += f"{f.markdown_content}\n\n---\n\n"
 
             # Optionally prepend the original query for context
-            query_context = task.query
+            query_context = job.query
             full_text = f"Research question: {query_context}\n\n{combined_md}"
 
             print(f"length of full text for claim extraction: {len(combined_md.split())} words")
@@ -87,19 +90,19 @@ class ClaimExtractorConsumer:
             claims = await self.extractor.dedupe_claims(all_claims)
             t1 = time.time()
             print(f"Time taken for claim deduplication: {t1 - t0:.2f} seconds")
-            print(f"Task {task_id_str}: Extracted {len(claims)} unique claims from {len(all_claims)} total claims.")
+            print(f"job {job_id_str}: Extracted {len(claims)} unique claims from {len(all_claims)} total claims.")
 
             if not claims:
-                logger.info(f"No claims extracted for task {task_id_str}")
+                logger.info(f"No claims extracted for job {job_id_str}")
                 return
 
-            task_uuid = UUID(task_id_str)
+            job_uuid = UUID(job_id_str)
             # Save claims to DB
             claim_ids = []
             for c in claims:
                 claim = Claim(
-                    task_id=task_uuid,
-                    finding_id=findings[0].id,  # or a special “task” claim; for simplicity use first finding
+                    job_id=job_uuid,
+                    finding_id=None,  # or a special “job” claim; for simplicity use first finding
                     text=c.claim,
                     evidence=c.evidence,  # aggregated, so no single URL
                     confidence=c.confidence,
@@ -117,9 +120,9 @@ class ClaimExtractorConsumer:
             # for cid in claim_ids:
             #     await publish_message(rd, STREAM_CLAIMS, {"claim_id": cid})
             
-            await publish_message(rd,   STREAM_TASK_EVENTS, {
-                "task_id": task_id_str,
+            await publish_message(rd,   STREAM, {
+                "job_id": job_id_str,
                 "event": "claims_completed"
             })
             
-            logger.info(f"Task {task_id_str}: {len(claims)} claims extracted.")
+            logger.info(f"job {job_id_str}: {len(claims)} claims extracted.")

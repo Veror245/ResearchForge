@@ -12,6 +12,9 @@ class ResearchFinding(Base, TimestampMixin):
     task_id: Mapped[UUID] = mapped_column(
         ForeignKey("research_tasks.id", ondelete="CASCADE"), nullable=False
     )
+    job_id : Mapped[UUID] = mapped_column(
+        ForeignKey("research_jobs.id", ondelete="CASCADE"), nullable=False
+    )
     query: Mapped[str] = mapped_column(Text, nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -23,6 +26,10 @@ class ResearchFinding(Base, TimestampMixin):
 
     task: Mapped["ResearchTask"] = relationship( # type: ignore
         "ResearchTask", back_populates="findings"
+    )
+    
+    job: Mapped["ResearchJob"] = relationship( # type: ignore
+        "ResearchJob", back_populates="findings"
     )
     
     claims: Mapped[list["Claim"]] = relationship("Claim", back_populates="finding", lazy="selectin") # type: ignore

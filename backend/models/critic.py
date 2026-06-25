@@ -23,6 +23,9 @@ class Critique(Base, TimestampMixin):
     task_id: Mapped[UUID] = mapped_column(
         ForeignKey("research_tasks.id", ondelete="CASCADE"), nullable=False
     )
+    job_id: Mapped[UUID] = mapped_column(
+        ForeignKey("research_jobs.id", ondelete="CASCADE"), nullable=False
+    )
     
     critic_name: Mapped[str] = mapped_column(Text, nullable=False)
     critique_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -33,7 +36,8 @@ class Critique(Base, TimestampMixin):
 
     claim: Mapped["Claim"] = relationship(back_populates="critiques") # type: ignore
     task: Mapped["ResearchTask"] = relationship(back_populates="critiques") # type: ignore
-    
+    job: Mapped["ResearchJob"] = relationship(back_populates="critiques") # type: ignore
+
 class CritiqueSchema(BaseModel):
     critic_name: str = Field(
         description="Name or identifier of the critic (e.g., 'LLM Critic', 'Peer Reviewer 1')"

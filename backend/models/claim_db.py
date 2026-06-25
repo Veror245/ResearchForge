@@ -26,6 +26,9 @@ class Claim(Base, TimestampMixin):
     finding_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("research_findings.id", ondelete="CASCADE"), nullable=True
     )
+    job_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("research_jobs.id", ondelete="CASCADE"), nullable=True
+    )
 
     # Core claim fields matching the Pydantic schema
     text: Mapped[str] = mapped_column(Text, nullable=False)          # the claim itself
@@ -42,5 +45,6 @@ class Claim(Base, TimestampMixin):
 
     # Relationships (optional, for ORM convenience)
     task: Mapped["ResearchTask"] = relationship("ResearchTask", back_populates="claims") # type: ignore
+    job: Mapped["ResearchJob"] = relationship("ResearchJob", back_populates="claims") # type: ignore
     finding: Mapped["ResearchFinding"] = relationship("ResearchFinding", back_populates="claims") # type: ignore
     critiques: Mapped[list["Critique"]] = relationship("Critique", back_populates="claim", cascade="all, delete-orphan") # type: ignore
