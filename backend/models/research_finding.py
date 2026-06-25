@@ -10,10 +10,10 @@ class ResearchFinding(Base, TimestampMixin):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=generate_uuid)
     task_id: Mapped[UUID] = mapped_column(
-        ForeignKey("research_tasks.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("research_tasks.id", ondelete="CASCADE"), nullable=True
     )
     job_id : Mapped[UUID] = mapped_column(
-        ForeignKey("research_jobs.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("research_jobs.id", ondelete="CASCADE"), nullable=True
     )
     query: Mapped[str] = mapped_column(Text, nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)

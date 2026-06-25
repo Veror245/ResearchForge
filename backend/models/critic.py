@@ -21,10 +21,10 @@ class Critique(Base, TimestampMixin):
         ForeignKey("claims.id", ondelete="CASCADE"), nullable=False
     )
     task_id: Mapped[UUID] = mapped_column(
-        ForeignKey("research_tasks.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("research_tasks.id", ondelete="CASCADE"), nullable=True
     )
     job_id: Mapped[UUID] = mapped_column(
-        ForeignKey("research_jobs.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("research_jobs.id", ondelete="CASCADE"), nullable=True
     )
     
     critic_name: Mapped[str] = mapped_column(Text, nullable=False)

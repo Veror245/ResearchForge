@@ -12,7 +12,7 @@ class ResearchReport(Base, TimestampMixin):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=generate_uuid)
     task_id: Mapped[UUID] = mapped_column(
-        ForeignKey("research_tasks.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("research_tasks.id", ondelete="CASCADE"), nullable=True
     )
     # You could also link to a job if you prefer job-level reports
     job_id: Mapped[UUID | None] = mapped_column(ForeignKey("research_jobs.id"), nullable=True)
