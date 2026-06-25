@@ -175,16 +175,16 @@ class CritiqueConsumer:
                         if fields.get("event") != "claims_completed":
                             await rd.xack(STREAM_TASK_EVENTS, CRITIC_GROUP, msg_id)
                             continue
-                        task_id = fields.get("task_id")
-                        if not task_id:
+                        job_id = fields.get("job_id")
+                        if not job_id:
                             await rd.xack(STREAM_TASK_EVENTS, CRITIC_GROUP, msg_id)
                             continue
 
-                        success = await self.process_task(task_id)
+                        success = await self.process_task(job_id)
                         if success:
                             await rd.xack(STREAM_TASK_EVENTS, CRITIC_GROUP, msg_id)
                         else:
-                            logger.error(f"Task {task_id} critique failed, acking anyway.")
+                            logger.error(f"Task {job_id} critique failed, acking anyway.")
                             await rd.xack(STREAM_TASK_EVENTS, CRITIC_GROUP, msg_id)
             except RedisTimeoutError:
                 continue
@@ -192,32 +192,20 @@ class CritiqueConsumer:
                 logger.error(f"Consumer loop error: {e}", exc_info=True)
                 await asyncio.sleep(1)
 
-    async def wait_for_claims(self, task_uuid: UUID, timeout: float = 60) -> list[Claim]:
-        """Wait until claims exist for this task, then return them."""
-        elapsed = 0
-        async with async_session() as session:
-            while elapsed < timeout:
-                stmt = select(Claim).where(Claim.task_id == task_uuid)
-                result = await session.execute(stmt)
-                claims = result.scalars().all()
-                if claims:
-                    return list(claims)
-                await asyncio.sleep(1)
-                elapsed += 1
-        return []
 
-    async def process_task(self, task_id_str: str) -> bool:
+
+    async def process_job(self, job_id_str: str) -> bool:
         try:
-            task_uuid = UUID(task_id_str)
+            job_uuid = UUID(job_id_str)
         except ValueError:
-            logger.error(f"Invalid task UUID: {task_id_str}")
+            logger.error(f"Invalid job UUID: {job_id_str}")
             return False
 
         # Wait for claims to be extracted
-        claims = await self.wait_for_claims(task_uuid, timeout=5)
+        claims = await self.wait_for_claims(job_uuid, timeout=5)
         claims = claims[:10]
         if not claims:
-            logger.warning(f"No claims found for task {task_id_str} after waiting")
+            logger.warning(f"No claims found for job {job_id_str} after waiting")
             return False
 
         # Prepare input dicts for all claims
@@ -227,13 +215,13 @@ class CritiqueConsumer:
                 "claim_text": claim.text,
                 "evidence_text": claim.evidence or "",
                 "chunk_text": claim.chunk or "",
-                "query": "",  # optional, you can fetch task.query later
+                "query": "",  # optional, you can fetch job.query later
             })
 
         t0 = time.time()
         # Process all claims in parallel (semaphore limits concurrency)
         results_per_claim = await self.agent.parallel_critique(claim_inputs)
-        logger.info(f"Task {task_id_str}: parallel critique finished in {time.time() - t0:.2f}s")
+        logger.info(f"job {job_id_str}: parallel critique finished in {time.time() - t0:.2f}s")
 
         # Persist critiques
         async with async_session() as session:
@@ -259,7 +247,7 @@ class CritiqueConsumer:
 
                     critique = Critique(
                         claim_id=claim.id,
-                        task_id=task_uuid,
+                        job_id=job_uuid,
                         critic_name=crit_data.critic_name or "Research Critic",
                         critique_text=crit_data.critique_text,
                         evidence=crit_data.evidence,
@@ -268,11 +256,11 @@ class CritiqueConsumer:
                     )
                     session.add(critique)
             await session.commit()
-            logger.info(f"Task {task_id_str}: saved critiques for {len(claims)} claims")
+            logger.info(f"job {job_id_str}: saved critiques for {len(claims)} claims")
 
         rd = await get_redis()
         await publish_message(rd, STREAM_TASK_EVENTS, {
-                "task_id": task_id_str,
+                "job_id": job_id_str,
                 "event": "critiques_completed"
             })
         return True
