@@ -3,7 +3,7 @@ from backend.models.research_task import ResearchTask, TaskStatus
 from backend.models.research_job import ResearchJob, JobStatus
 from pydantic import BaseModel, Field
 from typing import List
-from lanchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_classic.output_parsers import PydanticOutputParser
 import json
 import logging

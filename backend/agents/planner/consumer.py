@@ -12,6 +12,8 @@ from backend.models.research_task import ResearchTask, TaskStatus
 from backend.models.research_finding import ResearchFinding
 from backend.agents.planner.agent import Planner
 
+from redis.exceptions import TimeoutError as RedisTimeoutError
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,8 +40,11 @@ class PlannerConsumer:
                         if not query:
                             await rd.xack(STREAM_JOBS, JOB_GROUP, msg_id)
                             continue
-                        # Create job and spawn background processing
-                        job_id = uuid4()
+                        job_id_str = fields.get("job_id")
+                        try:
+                            job_id = UUID(job_id_str) if job_id_str else uuid4()
+                        except ValueError:
+                            job_id = uuid4()
                         async with async_session() as session:
                             job = ResearchJob(id=job_id, query=query, status=JobStatus.PENDING)
                             session.add(job)
@@ -47,6 +52,8 @@ class PlannerConsumer:
                         # Launch background task (don't await it)
                         asyncio.create_task(self.process_job(job_id))
                         await rd.xack(STREAM_JOBS, JOB_GROUP, msg_id)
+            except RedisTimeoutError:
+                continue
             except Exception as e:
                 logger.error(f"Planner loop error: {e}", exc_info=True)
                 await asyncio.sleep(1)
