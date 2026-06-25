@@ -3,7 +3,7 @@ name = "researchforge"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "asyncpg>=0.31.0",
     "chonkie>=1.6.8",
