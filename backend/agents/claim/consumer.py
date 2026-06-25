@@ -78,10 +78,16 @@ class ClaimExtractorConsumer:
             print(f"length of full text for claim extraction: {len(combined_md.split())} words")
             # Use your chunking-capable extractor
             t0 = time.time()
-            claims = await self.extractor.extract_claims_from_finding_parallel(text=combined_md, query=query_context)
+            all_claims = await self.extractor.extract_claims_from_finding_parallel(text=combined_md, query=query_context)
             t1 = time.time()
             print(f"Time taken for claim extraction: {t1 - t0:.2f} seconds")
             # Alternative: add a method to ClaimExtractor that accepts raw text + query
+
+            t0 = time.time()
+            claims = await self.extractor.dedupe_claims(all_claims)
+            t1 = time.time()
+            print(f"Time taken for claim deduplication: {t1 - t0:.2f} seconds")
+            print(f"Task {task_id_str}: Extracted {len(claims)} unique claims from {len(all_claims)} total claims.")
 
             if not claims:
                 logger.info(f"No claims extracted for task {task_id_str}")

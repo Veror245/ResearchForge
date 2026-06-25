@@ -11,6 +11,8 @@ import logging
 from pydantic import ValidationError
 import asyncio
 import time
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 from tokenizers import Tokenizer
 
@@ -31,6 +33,8 @@ class ClaimExtraction:
             )
         self.claim_parser = PydanticOutputParser(pydantic_object=Claim)
         self.claims_response_parser = PydanticOutputParser(pydantic_object=ClaimsResponse)
+        
+        self.embedder = SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu", local_files_only=True)
         
         self.claim_extraction_prompt = ChatPromptTemplate.from_messages(
                 [
@@ -295,4 +299,30 @@ class ClaimExtraction:
 
         return all_claims
 
-        
+    async def dedupe_claims(self, claims: list[Claim]) -> list[Claim]:
+        if not claims:
+            return []
+
+        device = "cpu"
+        claim_texts = [c.claim for c in claims]
+        embeddings = self.embedder.encode(
+            claim_texts, convert_to_tensor=True, normalize_embeddings=True,  device=device
+        )
+        sim_matrix = self.embedder.similarity(embeddings, embeddings)  # (n,n) tensor
+
+        threshold = 0.85
+        to_keep = set(range(len(claims)))
+
+        for i in range(len(claims)):
+            if i not in to_keep:
+                continue
+            for j in range(i + 1, len(claims)):
+                if j not in to_keep:
+                    continue
+                # sim_matrix[i][j] is a 0‑dim tensor, .item() gives float
+                if sim_matrix[i][j].item() > threshold:
+                    to_keep.discard(j)
+
+        deduped = [claims[i] for i in sorted(to_keep)]
+        logger.info(f"Deduplicated claims: {len(deduped)} kept from {len(claims)}")
+        return deduped

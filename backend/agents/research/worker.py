@@ -16,7 +16,7 @@ class ResearchWorker:
         self.search_service = SearchService(engines=["google", "bing", "brave", "duckduckgo"])
         self.num_results = 20
         
-        self.embedder = SentenceTransformer("BAAI/bge-small-en-v1.5")
+        self.embedder = SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu", local_files_only=True)
         
         self.crawler_config = CrawlerRunConfig(
             word_count_threshold=10,

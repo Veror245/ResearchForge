@@ -572,5 +572,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         queries = sys.argv[1:]
     else:
-        queries = ["What Happens Due to O3 Deficiency in Humans ?"]
+        queries = ["What Are the Most Horrifying Skin Crawling Horror Movies of All Time?"]
     asyncio.run(main(queries=queries))
