@@ -10,6 +10,7 @@ STREAM_CLAIMS = "research.claims"
 STREAM_REPORTS = "research.reports"  # New stream for reports,
 STREAM_CRITIQUES = "research.critiques"  # New stream for critiques
 STREAM_TASK_EVENTS = "research.task_events"
+STREAM_JOBS = "research.jobs"
 
 # We'll add more later (claims, critiques, etc.)
 
@@ -18,6 +19,8 @@ WORKER_GROUP = "research_workers"
 CLAIM_GROUP = "claim_extractors"
 REPORT_GROUP = "report_writers"
 CRITIC_GROUP = "critics"
+PLANNER_GROUP = "planner_group"
+JOB_GROUP = "planner_job_group"
 
 async def get_redis() -> redis.Redis:
     """Return a new Redis connection (use from_url or connection pool)."""
