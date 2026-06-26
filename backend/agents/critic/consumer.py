@@ -180,7 +180,7 @@ class CritiqueConsumer:
                             await rd.xack(STREAM_TASK_EVENTS, CRITIC_GROUP, msg_id)
                             continue
 
-                        success = await self.process_task(job_id)
+                        success = await self.process_job(job_id)
                         if success:
                             await rd.xack(STREAM_TASK_EVENTS, CRITIC_GROUP, msg_id)
                         else:
@@ -192,7 +192,19 @@ class CritiqueConsumer:
                 logger.error(f"Consumer loop error: {e}", exc_info=True)
                 await asyncio.sleep(1)
 
-
+    async def wait_for_claims(self, job_id_uuid: UUID, timeout: float = 60) -> list[Claim]:
+        """Wait until claims exist for this task, then return them."""
+        elapsed = 0
+        async with async_session() as session:
+            while elapsed < timeout:
+                stmt = select(Claim).where(Claim.job_id == job_id_uuid)
+                result = await session.execute(stmt)
+                claims = result.scalars().all()
+                if claims:
+                    return list(claims)
+                await asyncio.sleep(1)
+                elapsed += 1
+        return []
 
     async def process_job(self, job_id_str: str) -> bool:
         try:

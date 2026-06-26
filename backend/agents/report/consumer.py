@@ -109,6 +109,7 @@ class ReportWriterConsumer:
                 md += f" {c.evidence}\n\n"
                 cf.append(c.confidence)
             confidence = np.mean(cf) if cf else 0.0
+            print(len(md.split()), "words in claims markdown")
             # Generate report using your ReportWriter
             try:
                 report = await self.writer.generate_report(

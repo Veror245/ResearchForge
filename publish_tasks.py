@@ -107,7 +107,7 @@ async def main(queries: list[str]):
 
         # 3.2 Wait for the final report event for this job
         print(f"Waiting for report on job {job_id} ...")
-        ok = await wait_for_job_event(job_id, "job_report_completed", timeout=600)
+        ok = await wait_for_job_event(job_id, "report_completed", timeout=600)
         if not ok:
             print(f"ERROR: Timeout waiting for report on job {job_id}")
             continue

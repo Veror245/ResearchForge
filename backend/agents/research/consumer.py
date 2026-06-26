@@ -112,6 +112,7 @@ class ResearchWorkerConsumer:
                 for item in findings_data:
                     finding = ResearchFinding(
                         task_id=task_uuid,
+                        job_id = task.job_id,
                         query=query,
                         url=item["url"],
                         markdown_content=item["markdown"],
