@@ -4,3 +4,5 @@ from .claim_db import Claim, ClaimType
 from .research_job import ResearchJob
 from .report import ResearchReport
 from .critic import Critique, Severity
+from .verdict import Verdict
+from .debate import Skeptic, Optimist

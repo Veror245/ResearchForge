@@ -36,4 +36,10 @@ class ResearchJob(Base, TimestampMixin):
     
     reports: Mapped[list["Report"]] = relationship("ResearchReport", back_populates="job", lazy="selectin") # type: ignore
     
+    optimistic_args: Mapped[list["Optimist"]] = relationship("Optimist", back_populates="job", lazy="selectin") # type: ignore
+    
+    skeptical_args: Mapped[list["Skeptic"]] = relationship("Skeptic", back_populates="job", lazy="selectin") # type: ignore
+    
+    verdicts: Mapped[list["Verdict"]] = relationship("Verdict", back_populates="job", lazy="selectin") # type: ignore
+    
     

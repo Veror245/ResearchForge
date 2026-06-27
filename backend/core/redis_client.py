@@ -21,6 +21,7 @@ REPORT_GROUP = "report_writers"
 CRITIC_GROUP = "critics"
 PLANNER_GROUP = "planner_group"
 JOB_GROUP = "planner_job_group"
+DEBATE_GROUP = "debate_group"
 
 async def get_redis() -> redis.Redis:
     """Return a new Redis connection (use from_url or connection pool)."""
