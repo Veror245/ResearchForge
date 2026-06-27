@@ -74,6 +74,9 @@ class DebateAgent:
             for cr in claim_critiques:
                 lines.append(f"  Critique: {cr.critique_text[:200]}")
         claims_and_critiques = "\n".join(lines)
+        
+        logger.info(f"""Generating debate for query: {query} with {len(claims)} claims and {len(critiques)} 
+                    critiques with {len(claims_and_critiques.split())} words in claims_and_critiques""")
 
         
         chain = self.prompt | self.llm

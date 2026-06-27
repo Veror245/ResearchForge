@@ -13,6 +13,7 @@ from backend.models.research_finding import ResearchFinding
 from backend.models.claim_db import Claim
 from backend.models.report import ResearchReport
 from backend.agents.report.agent import ReportGenerator, ReportSchema
+from backend.models.debate import Skeptic, Optimist
 import numpy as np
 
 from redis.exceptions import TimeoutError as RedisTimeoutError
@@ -102,6 +103,16 @@ class ReportWriterConsumer:
                 # You might still generate a report without claims, or skip
                 # For now, we'll proceed with empty claims (you can change)
             logger.info(f"Generating report for job {job_id_str}")
+            
+            skeptic_stmt = select(Skeptic).where(Skeptic.job_id == job_uuid)
+            skeptics = (await session.execute(skeptic_stmt)).scalars().all()
+            if not skeptics:
+                logger.warning(f"No skeptic arguments found for job {job_id_str}")
+            optimist_stmt = select(Optimist).where(Optimist.job_id == job_uuid)
+            optimists = (await session.execute(optimist_stmt)).scalars().all()
+            if not optimists:
+                logger.warning(f"No optimist arguments found for job {job_id_str}")
+            
             md = ""
             cf = []
             for c in claims:
@@ -109,6 +120,14 @@ class ReportWriterConsumer:
                 md += f" {c.evidence}\n\n"
                 cf.append(c.confidence)
             confidence = np.mean(cf) if cf else 0.0
+            
+            md += "\n### Skeptic Arguments\n"
+            for s in skeptics:
+                md += f"- {s.arguments}\n"
+            md += "\n### Optimist Arguments\n"
+            for o in optimists:
+                md += f"- {o.arguments}\n"
+            
             print(len(md.split()), "words in claims markdown")
             # Generate report using your ReportWriter
             try:

@@ -71,8 +71,8 @@ class DebateConsumer:
                 select(Critique).where(Critique.job_id == job_uuid)
             )).scalars().all()
             
-            claims = claims[:5]
-            critiques = critiques[:5]
+            # claims = claims
+            # critiques = critiques
             # Generate debate
             debate_output = await self.agent.generate_debate(job.query, claims, critiques) # type: ignore
 
