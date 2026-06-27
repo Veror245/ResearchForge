@@ -11,7 +11,7 @@ from backend.models.debate import (
     DebateOutput
 )
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_classic import PydanticOutputParser
+from langchain_classic.output_parsers import PydanticOutputParser
 import json
 import logging
 

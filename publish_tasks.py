@@ -21,6 +21,7 @@ from backend.models.research_task import ResearchTask
 from backend.models.claim_db import Claim
 from backend.models.report import ResearchReport
 from backend.models.critic import Critique
+from backend.models.debate import Skeptic, Optimist
 import backend.models  # ensure all models are loaded
 
 # ---------------------------------------------------------------------------
@@ -149,6 +150,21 @@ async def main(queries: list[str]):
                 print(f"    Evidence: {(critique.evidence or 'N/A')[:200]}...")
                 print("    ---")
 
+            skeptic_stmt = select(Skeptic).where(Skeptic.job_id == job_id)
+            skeptics = (await session.execute(skeptic_stmt)).scalars().all()
+            print(f"\nSkeptical arguments generated: {len(skeptics)}")
+            for i, skeptic in enumerate(skeptics, 1):
+                print(f"  Skeptic {i}:")
+                print(f"    Arguments: {skeptic.arguments[:200]}...")
+                print("    ---")
+            
+            optimist_stmt = select(Optimist).where(Optimist.job_id == job_id)
+            optimists = (await session.execute(optimist_stmt)).scalars().all()
+            print(f"\nOptimistic arguments generated: {len(optimists)}")
+            for i, optimist in enumerate(optimists, 1):
+                print(f"  Optimist {i}:")
+                print(f"    Arguments: {optimist.arguments[:200]}...")
+                print("    ---")
             # ---- Report ----
             report_stmt = select(ResearchReport).where(ResearchReport.job_id == job_id)
             report = (await session.execute(report_stmt)).scalars().first()
