@@ -41,7 +41,7 @@ class ReportWriterConsumer:
                     continue
                 for stream_name, msg_list in messages:
                     for msg_id, fields in msg_list: # type: ignore
-                        if fields.get("event") != "critiques_completed":
+                        if fields.get("event") != "debate_completed":
                             await rd.xack(STREAM_TASK_EVENTS, REPORT_GROUP, msg_id)
                             continue
                         job_id = fields.get("job_id")
