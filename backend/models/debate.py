@@ -15,7 +15,7 @@ class Skeptic(Base, TimestampMixin):
         ForeignKey("research_jobs.id", ondelete="CASCADE"), nullable=False
     )
     
-    arguements: Mapped[str] = mapped_column(Text, nullable=False)
+    arguments: Mapped[str] = mapped_column(Text, nullable=False)
 
     job: Mapped["ResearchJob"] = relationship(back_populates="skeptical_args") # type: ignore
 
@@ -27,7 +27,7 @@ class Optimist(Base, TimestampMixin):
         ForeignKey("research_jobs.id", ondelete="CASCADE"), nullable=False
     )
     
-    arguements: Mapped[str] = mapped_column(Text, nullable=False)
+    arguments: Mapped[str] = mapped_column(Text, nullable=False)
 
     job: Mapped["ResearchJob"] = relationship(back_populates="optimistic_args") # type: ignore
  
@@ -39,7 +39,7 @@ class SkepticSchema(BaseModel):
     evidence: Optional[str] = Field(
         description="Optional evidence or rationale supporting the skeptical arguments"
     )
-    arguements: str = Field(
+    arguments: str = Field(
         description="List of skeptical arguments against the claim"
     )
 
@@ -50,7 +50,7 @@ class OptimistSchema(BaseModel):
     evidence: Optional[str] = Field(
         description="Optional evidence or rationale supporting the optimistic arguments"
     )
-    arguements: str = Field(
+    arguments: str = Field(
         description="List of optimistic arguments for the claim"
     )
     
