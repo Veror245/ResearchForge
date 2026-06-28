@@ -7,11 +7,11 @@
 [![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?logo=langchain&logoColor=white)](https://www.langchain.com/)
 
-ResearchForge is an autonomous multi-agent research platform. A user asks a question, the system plans focused sub-queries, searches and crawls source material, extracts claims, critiques the evidence, debates opposing views, and assembles a fully referenced Markdown and PDF report with a confidence score.
+ResearchForge is an autonomous multi-agent research platform. A user asks a question, the system breaks it into focused sub-queries, searches the web through SearXNG, crawls and normalizes source pages, extracts claims from the evidence, critiques those claims, debates competing interpretations, and assembles a fully referenced Markdown and PDF report with a confidence score.
 
 ## What It Does
 
-ResearchForge runs as an event-driven pipeline built on Redis Streams. Each stage consumes a stream event, performs its work independently, and emits the next event when it completes.
+ResearchForge runs as an event-driven pipeline built on Redis Streams. Each stage consumes a stream event, performs its work independently, and emits the next event when it completes. The system is designed to behave like a compact research organization rather than a single-step summarizer, with separate agents handling planning, retrieval, synthesis, critique, and final reporting.
 
 The generated report includes:
 
@@ -22,6 +22,19 @@ The generated report includes:
 - Counterarguments
 - Final assessment
 - Confidence score
+
+## Features
+
+- Autonomous multi-agent research pipeline
+- Event-driven orchestration with Redis Streams
+- Parallel web search and crawling across multiple workers
+- Claim extraction with evidence-backed critique
+- Multi-agent debate for balanced, adversarial analysis
+- Markdown and PDF report generation with polished formatting
+- Confidence scoring for final conclusions
+- REST API and Streamlit interface for job submission and monitoring
+- Live progress visibility through job and log endpoints
+- Pluggable LLM backends through the existing core configuration layer
 
 ## Architecture
 
