@@ -101,7 +101,7 @@ class PlannerConsumer:
                 # Update job status
                 job = await session.get(ResearchJob, job_id)
                 if job:
-                    job.status = JobStatus.COMPLETED
+                    job.status = JobStatus.PENDING
                     await session.commit()
             
             logger.info(f"md lenghth {len(combined_md.split())} words for job {job_id}")

@@ -7,7 +7,7 @@ from backend.core.redis_client import (
     REPORT_GROUP, publish_message
 )
 from backend.core.database import async_session
-from backend.models.research_job import ResearchJob
+from backend.models.research_job import JobStatus, ResearchJob
 from backend.models.research_task import ResearchTask
 from backend.models.research_finding import ResearchFinding
 from backend.models.claim_db import Claim
@@ -152,6 +152,12 @@ class ReportWriterConsumer:
                 confidence_score=confidence,
             )
             session.add(report)
+             
+            stmt = select(ResearchJob).where(ResearchJob.id == job_uuid)
+            saved_job = (await session.execute(stmt)).scalars().first()
+            if saved_job:
+                saved_job.status = JobStatus.COMPLETED
+            
             await session.commit()
 
             # Publish to reports stream
