@@ -420,14 +420,15 @@ async def main(queries: list[str]):
                     safe_name = re.sub(r'[^\w\-]', '_', job.query)[:50]
                     HTML(string=html_full).write_pdf(f"data/report_{safe_name}.pdf")
                     print(f"  PDF saved as report_{safe_name}.pdf")
+                    return raw_md, html_full
                 except Exception as e:
                     print(f"  PDF generation failed: {e}")
             else:
                 print("  No report found.")
 
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        queries = sys.argv[1:]
-    else:
-        queries = ["What Are the latest advancements in AI for medical diagnostics?"]
-    asyncio.run(main(queries=queries))
+# if __name__ == "__main__":
+#     if len(sys.argv) > 1:
+#         queries = sys.argv[1:]
+#     else:
+#         queries = ["What Are the latest advancements in AI for medical diagnostics?"]
+#     asyncio.run(main(queries=queries))
