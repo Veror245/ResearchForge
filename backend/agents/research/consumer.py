@@ -27,13 +27,13 @@ class ResearchWorkerConsumer:
     def __init__(self):
         self.worker = ResearchWorker()
 
-    async def run(self, consumer_id: str = "worker-1"):
+    async def run(self, shutdown_event: asyncio.Event, consumer_id: str = "worker-1"):
         rd = await get_redis()
         await ensure_consumer_group(rd, STREAM_TASKS, WORKER_GROUP)
 
         logger.info(f"Worker consumer {consumer_id} started. Listening on {STREAM_TASKS}")
 
-        while True:
+        while not shutdown_event or not shutdown_event.is_set():
             try:
                 # Read new tasks from stream (pending + new)
                 # '>' means read new messages that have not been delivered to this consumer
@@ -42,7 +42,7 @@ class ResearchWorkerConsumer:
                     consumername=consumer_id,
                     streams={STREAM_TASKS: ">"},
                     count=1,          # process one task at a time
-                    block=5000,       # wait 5 seconds if no message
+                    block=1000,       # wait 5 seconds if no message
                 )
 
                 if not messages:

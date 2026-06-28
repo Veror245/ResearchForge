@@ -138,6 +138,7 @@ class ReportGenerator:
                 key_findings=raw_dict.get("key_findings", []),
                 methodology=raw_dict.get("methodology", ""),
                 supporting_evidence=raw_dict.get("supporting_evidence", []),
+                counterarguments=raw_dict.get("counterarguments", ""),
                 final_assessment=raw_dict.get("final_assessment", ""),
             )
             logger.debug("Level 3 (raw load) succeeded")

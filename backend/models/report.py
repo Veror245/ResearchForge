@@ -109,9 +109,9 @@ class ReportSchema(BaseModel):
     supporting_evidence: Optional[str] = Field(
         description="Supporting evidence for the research findings in. Do not include markdown headings."
     )
-    # counterarguments: Optional[str] = Field(
-    #     description="Counterarguments to the research findings."
-    # )
+    counterarguments: Optional[str] = Field(
+        description="Counterarguments to the research findings."
+    )
     final_assessment: Optional[str] = Field(
         description="The final assessment of the research findings in. Do not include markdown headings."
     )
