@@ -44,7 +44,7 @@ If Docker and uv are already available on your machine, the shortest path to a r
 2. Install dependencies with `uv sync`.
 3. Initialise the database with `uv run python init_db.py`.
 4. Launch the workers with `uv run python services_launcher.py`.
-5. Start the API with `uv run uvicorn backend.api.main:app --reload --port 8000`.
+5. Start the API with `uv run fastapi dev backend/api/main.py`.
 6. Start the frontend with `uv run streamlit run frontend/app.py`.
 
 ## Architecture
@@ -137,6 +137,12 @@ This starts PostgreSQL with pgvector, Redis, and SearXNG.
 uv sync
 ```
 
+Run the Crawl4ai Setup Command after installing the python environment
+
+```bash
+crawl4ai-setup
+```
+
 If Crawl4AI needs browser binaries in your environment, install them with:
 
 ```bash
@@ -145,7 +151,13 @@ uv run playwright install --with-deps
 
 3. Configure environment variables.
 
-Create a `.env` file in the project root. At minimum, set the service URLs used by the app:
+Create a `.env` file in the project root and use the format below.
+
+### `.env` File Format
+
+Use standard `KEY=VALUE` entries, one per line. Keep secrets out of version control and store them only in your local `.env` file or deployment environment.
+
+Required variables:
 
 ```env
 DATABASE_URL=postgresql+asyncpg://forge:forgepass@localhost:5432/researchforge
@@ -153,7 +165,14 @@ REDIS_URL=redis://localhost:6379
 SEARXNG_BASE_URL=http://localhost:8888
 ```
 
-Add the provider credentials required by your LLM configuration in [backend/core/llm.py](backend/core/llm.py).
+Optional provider keys, depending on the LLM backend you enable:
+
+```env
+OLLAMA_API_KEY=your-ollama-api-key
+GROQ_API_KEY=your-groq-api-key
+```
+
+If you are not using a provider, omit its key.
 
 4. Initialise the database.
 
@@ -174,7 +193,7 @@ This launches the planner, research, claim, critic, debate, and report workers.
 Start the API in a separate terminal:
 
 ```bash
-uv run uvicorn backend.api.main:app --reload --port 8000
+uv run fastapi dev backend/api/main.py
 ```
 
 Start the Streamlit frontend in another terminal:
