@@ -26,25 +26,53 @@ The generated report includes:
 ## Architecture
 
 ```mermaid
-flowchart TD
-    UI[Streamlit UI] --> API[FastAPI API]
-    API --> RS[(Redis Streams)]
+flowchart LR
+    subgraph Frontend
+        UI[Streamlit UI]
+    end
 
-    RS --> P[Planner Agent]
-    RS --> RW[Research Workers]
-    RS --> C[Claim Extractor]
-    RS --> K[Critic Agent]
-    RS --> D[Debate Agent]
-    RS --> R[Report Writer]
+    subgraph Backend
+        API[FastAPI API]
+        RS[(Redis Streams)]
+        P[Planner Agent]
+        RW[Research Workers<br/>3x parallel]
+        C[Claim Extractor]
+        K[Critic Agent]
+        D[Debate Agent]
+        R[Report Writer]
+        DB[(PostgreSQL<br/>pgvector)]
+    end
 
-    RW --> SX[SearXNG]
-    RW --> CA[Crawl4AI]
-    RW --> EMB[SentenceTransformers]
+    subgraph External
+        SX[SearXNG<br/>self-hosted]
+        CA[Crawl4AI<br/>crawler]
+        EM[SentenceTransformers<br/>embeddings]
+    end
 
-    C --> DB[(PostgreSQL + pgvector)]
-    K --> DB
-    D --> DB
-    R --> DB
+    UI --> API
+    API -->|publish job| RS
+
+    RS -->|job_researched| C
+    RS -->|claims_completed| K
+    RS -->|critiques_completed| D
+    RS -->|debate_completed| R
+    RS -->|research_completed| P
+    P -->|publish tasks| RS
+
+    RS -->|research tasks| RW
+    RW -->|search| SX
+    RW -->|crawl| CA
+    RW -->|deduplicate / MMR| EM
+
+    RW -->|save findings| DB
+    C -->|save claims| DB
+    K -->|save critiques| DB
+    D -->|save arguments| DB
+    R -->|save report| DB
+    R -->|markdown| API
+
+    DB ---|read| UI
+    API ---|REST| UI
 ```
 
 The FastAPI application is defined in [backend/api/main.py](backend/api/main.py), and the Streamlit frontend is in [frontend/app.py](frontend/app.py).
