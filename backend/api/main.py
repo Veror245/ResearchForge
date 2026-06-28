@@ -13,7 +13,7 @@ from backend.models.research_job import ResearchJob
 from backend.models.report import ResearchReport
 from sqlalchemy import select
 
-from backend.core.redis_client import STREAM_JOBS, get_redis, publish_message
+from backend.core.redis_client import STREAM_JOBS, STREAM_LOGS, STREAM_LOGS, get_redis, publish_message
 
 
 root = Path(__file__).parent.parent.parent
@@ -372,3 +372,20 @@ async def get_report_pdf(job_id: str):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             HTML(string=html_full).write_pdf(tmp.name)
             return FileResponse(tmp.name, media_type="application/pdf", filename=f"report_{job_id}.pdf")
+        
+@app.get("/job/{job_id}/logs")
+async def get_job_logs(job_id: str, count: int = 50):
+    rd = await get_redis()
+    # Read latest messages; you could filter more precisely with xrange
+    messages = await rd.xrevrange(STREAM_LOGS, max="+", min="-", count=count)
+    logs = []
+    for msg_id, fields in messages: # type: ignore
+        if fields.get("job_id") == job_id: # type: ignore
+            logs.append({
+                "agent": fields.get("agent"), # type: ignore
+                "message": fields.get("message"), # type: ignore
+                "ts": fields.get("ts") # type: ignore
+            })
+    # Reverse to show oldest first
+    logs.reverse()
+    return {"job_id": job_id, "logs": logs}

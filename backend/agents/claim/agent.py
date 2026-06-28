@@ -220,7 +220,7 @@ class ClaimExtraction:
 
         chunks = self.chunk_findings(markdown_content)
 
-        await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", f"Extracting claims from finding {finding.id if finding else 'N/A'} with {len(chunks)} chunks")
+        await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", f"Extracting claims from findings with {len(chunks)} chunks")
         logger.info(
             f"Created {len(chunks)} chunks"
         )
@@ -234,8 +234,8 @@ class ClaimExtraction:
 
             redis = await get_redis()
             
-            await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", 
-                    f"Processing chunk {chunk_idx + 1}/{len(chunks)}")
+            # await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", 
+            #         f"Processing chunk {chunk_idx + 1}/{len(chunks)}")
             
             logger.info(
                 f"Processing chunk "

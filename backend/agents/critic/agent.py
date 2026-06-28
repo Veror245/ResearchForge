@@ -151,7 +151,7 @@ class CritiqueAgent:
         chain = self.prompt | self.local  # Use local model for critique generation
         rd = await get_redis()
         logger.info(f"Processing critique {index + 1}/{total}")
-        
+        await publish_log(rd, job_id, "critic", f"Started Processing Critiques")
         try:
             async with self.sem:
                 raw_output = await self._call_llm(chain, input_dict)

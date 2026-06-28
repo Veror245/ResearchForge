@@ -138,6 +138,7 @@ from backend.core.redis_client import (
     CRITIC_GROUP,
     STREAM_TASK_EVENTS,
     publish_message,
+    publish_log,
 )
 from backend.core.database import async_session
 from backend.models.research_task import ResearchTask
