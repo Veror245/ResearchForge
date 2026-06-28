@@ -11,7 +11,7 @@ ResearchForge is an autonomous multi-agent research platform. A user asks a ques
 
 ## What It Does
 
-ResearchForge runs as an event-driven pipeline built on Redis Streams. Each stage consumes a stream event, performs its work independently, and emits the next event when it completes. The system is designed to behave like a compact research organization rather than a single-step summarizer, with separate agents handling planning, retrieval, synthesis, critique, and final reporting.
+ResearchForge runs as an event-driven pipeline built on Redis Streams. Each stage consumes a stream event, performs its work independently, and emits the next event when it completes. The system is designed to behave like a compact research organization rather than a single-step summarizer, with separate agents handling planning, retrieval, synthesis, critique, and final reporting, while persisting outputs to PostgreSQL and surfacing progress through the API.
 
 The generated report includes:
 
@@ -194,6 +194,7 @@ This publishes the job to Redis, waits for the pipeline to finish, and writes th
 | GET | `/job/{job_id}/report` | Get the structured report as JSON |
 | GET | `/job/{job_id}/report/markdown` | Get the cleaned Markdown report |
 | GET | `/job/{job_id}/report/pdf` | Download the rendered PDF report |
+| GET | `/job/{job_id}/logs` | Fetch live agent logs for a job |
 
 ## Project Layout
 
