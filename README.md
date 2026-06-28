@@ -7,7 +7,7 @@
 [![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?logo=langchain&logoColor=white)](https://www.langchain.com/)
 
-ResearchForge is an autonomous multi-agent research platform. A user asks a question, the system breaks it into focused sub-queries, searches the web through SearXNG, crawls and normalizes source pages, extracts claims from the evidence, critiques those claims, debates competing interpretations, and assembles a fully referenced Markdown and PDF report with a confidence score.
+ResearchForge is an autonomous multi-agent research platform built for structured investigation rather than one-shot summarization. Instead of returning a single answer, it decomposes a question into focused sub-queries, searches the web through SearXNG, crawls and normalizes source pages, extracts and challenges claims, debates competing interpretations, and assembles a fully referenced Markdown and PDF report with a confidence score.
 
 ## What It Does
 
