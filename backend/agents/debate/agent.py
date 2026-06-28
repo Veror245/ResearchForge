@@ -41,7 +41,7 @@ class DebateAgent:
         Each key must contain an array of objects, and each object must have these fields:
         - `claim`: a concise summary of the claim or angle being addressed (1–2 sentences)
         - `evidence`: the most relevant piece(s) of source evidence, quoted or closely paraphrased (never invented)
-        - `argument`: a persuasive, logically sound point that clearly supports the corresponding stance (skeptical or optimistic). One idea per entry.
+        - `arguments`: a persuasive, logically sound point that clearly supports the corresponding stance (skeptical or optimistic). One idea per entry.
 
         **Critical rules:**
         - Derive **every** argument strictly from the provided claims and critiques. Do not bring in outside knowledge.
