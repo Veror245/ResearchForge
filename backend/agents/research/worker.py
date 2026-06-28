@@ -7,6 +7,7 @@ from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from backend.models.search import SearchResult
 from sentence_transformers import SentenceTransformer
+from backend.core.redis_client import publish_log, get_redis, STREAM_LOGS
 import numpy as np
 
 

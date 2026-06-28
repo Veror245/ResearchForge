@@ -2,6 +2,7 @@ import json
 
 from jsonschema import ValidationError
 
+from backend.core.redis_client import get_redis, publish_log
 from backend.models.critic import CritiqueSchema, Severity, CritiquesResponse
 from backend.core.llm import critic_llm as llm
 from backend.core.llm import claim_llm
@@ -146,9 +147,9 @@ class CritiqueAgent:
 
         return []
     
-    async def process_critique(self, index: int, input_dict: dict, total: int) -> list[CritiqueSchema]:
+    async def process_critique(self, index: int, input_dict: dict, total: int, job_id: str = "N/A") -> list[CritiqueSchema]:
         chain = self.prompt | self.local  # Use local model for critique generation
-
+        rd = await get_redis()
         logger.info(f"Processing critique {index + 1}/{total}")
         
         try:
@@ -162,11 +163,12 @@ class CritiqueAgent:
 
         critiques = self._titanium_parse_critiques(content)
         logger.info(f"Parsed {len(critiques)} critiques")
+        await publish_log(rd, job_id, "critic", f"parsed {len(critiques)} critiques.")
         
         return critiques
         
     
-    async def parallel_critique(self, input: list[dict]) -> list[list[CritiqueSchema]]:
+    async def parallel_critique(self, input: list[dict], job_id: str = "N/A") -> list[list[CritiqueSchema]]:
         # input_dict = {
         #     "claim_text": claim_text,
         #     "evidence_text": evidence_text,
@@ -175,7 +177,7 @@ class CritiqueAgent:
         # }
         
         total = len(input)
-        tasks = [self.process_critique(index, input_dict, total) for index, input_dict in enumerate(input)]  # Adjust the number of parallel tasks as needed
+        tasks = [self.process_critique(index, input_dict, total, job_id) for index, input_dict in enumerate(input)]  # Adjust the number of parallel tasks as needed
         results = await asyncio.gather(*tasks)
         
         all_critiques : list[list[CritiqueSchema]] = []

@@ -1,3 +1,5 @@
+import time
+
 import redis.asyncio as redis
 from redis.exceptions import ResponseError
 from backend.core.config import settings
@@ -11,6 +13,7 @@ STREAM_REPORTS = "research.reports"  # New stream for reports,
 STREAM_CRITIQUES = "research.critiques"  # New stream for critiques
 STREAM_TASK_EVENTS = "research.task_events"
 STREAM_JOBS = "research.jobs"
+STREAM_LOGS = "research.logs"
 
 # We'll add more later (claims, critiques, etc.)
 
@@ -43,3 +46,11 @@ async def ensure_consumer_group(rd: redis.Redis, stream: str, group: str):
 async def publish_message(rd: redis.Redis, stream: str, data: dict) -> str:
     """Publish a message to a Redis stream. Returns the message ID."""
     return await rd.xadd(stream, data, maxlen=10000) # type: ignore
+
+async def publish_log(rd: redis.Redis, job_id: str, agent: str, message: str):
+    await rd.xadd(STREAM_LOGS, {
+        "job_id": job_id,
+        "agent": agent,
+        "message": message,
+        "ts": str(time.time())
+    }, maxlen=10000)

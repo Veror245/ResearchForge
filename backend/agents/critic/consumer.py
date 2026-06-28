@@ -232,7 +232,7 @@ class CritiqueConsumer:
 
         t0 = time.time()
         # Process all claims in parallel (semaphore limits concurrency)
-        results_per_claim = await self.agent.parallel_critique(claim_inputs)
+        results_per_claim = await self.agent.parallel_critique(claim_inputs, job_id=job_id_str)
         logger.info(f"job {job_id_str}: parallel critique finished in {time.time() - t0:.2f}s")
 
         # Persist critiques
@@ -271,6 +271,7 @@ class CritiqueConsumer:
             logger.info(f"job {job_id_str}: saved critiques for {len(claims)} claims")
 
         rd = await get_redis()
+        await publish_log(rd, job_id_str, "critic", f"Completed processing critiques for job {job_id_str}")
         await publish_message(rd, STREAM_TASK_EVENTS, {
                 "job_id": job_id_str,
                 "event": "critiques_completed"

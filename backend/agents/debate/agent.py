@@ -1,6 +1,7 @@
 from jsonschema import ValidationError
 
 from backend.core.llm import llm, claim_llm, critic_llm
+from backend.core.redis_client import get_redis, publish_log
 from backend.models.debate import (
     Skeptic, 
     Optimist,
@@ -62,9 +63,10 @@ class DebateAgent:
         ]).partial(format_instructions=self.parser.get_format_instructions())
 
 
-    async def generate_debate(self, query: str, claims: list, critiques: list) -> DebateOutput:
+    async def generate_debate(self, query: str, claims: list, critiques: list, job_id: str = "N/A") -> DebateOutput:
         # Format claims and critiques compactly
         lines = []
+        rd = await get_redis()
         for c in claims:
             lines.append(f"- Claim: {c.text}")
             if c.evidence:
@@ -77,6 +79,7 @@ class DebateAgent:
         
         logger.info(f"""Generating debate for query: {query} with {len(claims)} claims and {len(critiques)} 
                     critiques with {len(claims_and_critiques.split())} words in claims_and_critiques""")
+        await publish_log(rd, job_id, "debate", f"Generating debate for query: {query} with {len(claims)} claims and {len(critiques)} critiques")
 
         
         chain = self.prompt | self.llm

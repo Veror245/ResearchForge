@@ -74,7 +74,7 @@ class DebateConsumer:
             # claims = claims
             # critiques = critiques
             # Generate debate
-            debate_output = await self.agent.generate_debate(job.query, claims, critiques) # type: ignore
+            debate_output = await self.agent.generate_debate(job.query, claims, critiques, job_id=job_id_str) # type: ignore
 
             # Save skeptical arguments
             for item in debate_output.skeptic_arguments:
@@ -94,4 +94,8 @@ class DebateConsumer:
                 "event": "debate_completed"
             })
             logger.info(f"Debate completed for job {job_id_str}: {len(debate_output.skeptic_arguments)} skeptic, {len(debate_output.optimist_arguments)} optimist arguments saved.")
+            await publish_message(rd, STREAM_TASK_EVENTS, {
+                "job_id": job_id_str,
+                "event": "debate_completed"
+            })
             return True

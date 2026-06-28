@@ -7,6 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_classic.output_parsers import PydanticOutputParser
 import json
 import logging
+from backend.core.redis_client import publish_log, get_redis, STREAM_LOGS
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +57,12 @@ class Planner:
         Returns:
             PlannerOutput: A PlannerOutput object containing the three sub‑queries.
         """
+        self.redis = await get_redis()
         chain = self.prompt | self.llm
         input = {"query": job.query}
         raw_response = await self._call_llm(chain, input)
         response = self._titanium_parse_planner(raw_response)
-        
+        await publish_log(self.redis, str(job.id), "planner", f"Generated sub-queries: {response.sub_queries}")
         return response
         
    

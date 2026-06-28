@@ -5,7 +5,7 @@ from sqlalchemy import select
 from redis.asyncio import Redis
 from backend.core.redis_client import (
     STREAM_TASK_EVENTS, get_redis, ensure_consumer_group, STREAM_TASK_READY, STREAM_CLAIMS, STREAM_JOBS,
-    CLAIM_GROUP, publish_message
+    CLAIM_GROUP, publish_log, publish_message
 )
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from backend.core.database import async_session
@@ -81,13 +81,13 @@ class ClaimExtractorConsumer:
             print(f"length of full text for claim extraction: {len(combined_md.split())} words")
             # Use your chunking-capable extractor
             t0 = time.time()
-            all_claims = await self.extractor.extract_claims_from_finding_parallel(text=combined_md, query=query_context)
+            all_claims = await self.extractor.extract_claims_from_finding_parallel(text=combined_md, query=query_context, finding=findings[0])
             t1 = time.time()
             print(f"Time taken for claim extraction: {t1 - t0:.2f} seconds")
             # Alternative: add a method to ClaimExtractor that accepts raw text + query
 
             t0 = time.time()
-            claims = await self.extractor.dedupe_claims(all_claims)
+            claims = await self.extractor.dedupe_claims(all_claims, finding=findings[0])
             t1 = time.time()
             print(f"Time taken for claim deduplication: {t1 - t0:.2f} seconds")
             print(f"job {job_id_str}: Extracted {len(claims)} unique claims from {len(all_claims)} total claims.")
@@ -125,4 +125,5 @@ class ClaimExtractorConsumer:
                 "event": "claims_completed"
             })
             
+            await publish_log(rd, job_id_str, "claim", f"Published {len(claim_ids)} claims to stream.")
             logger.info(f"job {job_id_str}: {len(claims)} claims extracted.")

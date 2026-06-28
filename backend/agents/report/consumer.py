@@ -4,7 +4,7 @@ from sqlalchemy import select
 from redis.asyncio import Redis
 from backend.core.redis_client import (
     STREAM_TASK_EVENTS, get_redis, ensure_consumer_group, STREAM_TASK_READY, STREAM_REPORTS,
-    REPORT_GROUP, publish_message
+    REPORT_GROUP, publish_log, publish_message
 )
 from backend.core.database import async_session
 from backend.models.research_job import JobStatus, ResearchJob
@@ -103,6 +103,9 @@ class ReportWriterConsumer:
                 # You might still generate a report without claims, or skip
                 # For now, we'll proceed with empty claims (you can change)
             logger.info(f"Generating report for job {job_id_str}")
+            rd = await get_redis()
+            await publish_log(rd, job_id_str, "report", 
+            f"Generating report for job {job_id_str} with {len(findings)} findings and {len(claims)} claims.")
             
             skeptic_stmt = select(Skeptic).where(Skeptic.job_id == job_uuid)
             skeptics = (await session.execute(skeptic_stmt)).scalars().all()
@@ -161,7 +164,6 @@ class ReportWriterConsumer:
             await session.commit()
 
             # Publish to reports stream
-            rd = await get_redis()
             await publish_message(rd, STREAM_TASK_EVENTS, {
                 "job_id": job_id_str,
                 "event": "report_completed"

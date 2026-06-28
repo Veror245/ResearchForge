@@ -15,6 +15,7 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 
 from tokenizers import Tokenizer
+from backend.core.redis_client import publish_log, get_redis, STREAM_LOGS
 
 # Load a tokenizer (GPT-2 tokenizer is a good generic choice)
 tokenizer = Tokenizer.from_pretrained("gpt2")
@@ -211,14 +212,15 @@ class ClaimExtraction:
         Splits markdown into chunks, processes them in parallel,
         parses the outputs, and returns a combined list of claims.
         """
-
-        markdown_content = finding.markdown_content if finding else text
+        redis = await get_redis()
+        markdown_content = text
 
         if not markdown_content:
             return []
 
         chunks = self.chunk_findings(markdown_content)
 
+        await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", f"Extracting claims from finding {finding.id if finding else 'N/A'} with {len(chunks)} chunks")
         logger.info(
             f"Created {len(chunks)} chunks"
         )
@@ -230,10 +232,16 @@ class ClaimExtraction:
             chunk_idx: int,
         ) -> list[Claim]:
 
+            redis = await get_redis()
+            
+            await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", 
+                    f"Processing chunk {chunk_idx + 1}/{len(chunks)}")
+            
             logger.info(
                 f"Processing chunk "
                 f"{chunk_idx + 1}/{len(chunks)}"
             )
+            
 
             try:
                 async with self.sem:
@@ -263,6 +271,10 @@ class ClaimExtraction:
                 if c.chunk is None:
                     c.chunk = chunk  # attach the chunk text to the claim
 
+            await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", 
+                    f"Chunk {chunk_idx + 1}: "
+                    f"extracted {len(claims)} claims")
+            
             logger.info(
                 f"Chunk {chunk_idx + 1}: "
                 f"extracted {len(claims)} claims"
@@ -296,15 +308,23 @@ class ClaimExtraction:
             f"Total extracted claims: "
             f"{len(all_claims)}"
         )
+        await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", 
+                f"Total extracted claims: "
+                f"{len(all_claims)}"
+            )
 
         return all_claims
 
-    async def dedupe_claims(self, claims: list[Claim]) -> list[Claim]:
+    async def dedupe_claims(self, claims: list[Claim], finding: ResearchFinding | None = None ) -> list[Claim]:
         if not claims:
             return []
 
+        redis = await get_redis()
+        
+        
         device = "cpu"
         claim_texts = [c.claim for c in claims]
+        
         embeddings = self.embedder.encode(
             claim_texts, convert_to_tensor=True, normalize_embeddings=True,  device=device
         )
@@ -325,4 +345,7 @@ class ClaimExtraction:
 
         deduped = [claims[i] for i in sorted(to_keep)]
         logger.info(f"Deduplicated claims: {len(deduped)} kept from {len(claims)}")
+        await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", 
+                f"Deduplicated claims: {len(deduped)} kept from {len(claims)}"
+            )
         return deduped
