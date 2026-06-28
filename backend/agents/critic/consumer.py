@@ -215,7 +215,7 @@ class CritiqueConsumer:
 
         # Wait for claims to be extracted
         claims = await self.wait_for_claims(job_uuid, timeout=5)
-        claims = claims[:10]
+        claims = claims[:20]
         if not claims:
             logger.warning(f"No claims found for job {job_id_str} after waiting")
             return False
