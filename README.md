@@ -36,6 +36,17 @@ The generated report includes:
 - Live progress visibility through job and log endpoints
 - Pluggable LLM backends through the existing core configuration layer
 
+## Quick Start
+
+If Docker and uv are already available on your machine, the shortest path to a running system is:
+
+1. Start the infrastructure with `docker compose up -d`.
+2. Install dependencies with `uv sync`.
+3. Initialise the database with `uv run python init_db.py`.
+4. Launch the workers with `uv run python services_launcher.py`.
+5. Start the API with `uv run uvicorn backend.api.main:app --reload --port 8000`.
+6. Start the frontend with `uv run streamlit run frontend/app.py`.
+
 ## Architecture
 
 ```mermaid
@@ -218,6 +229,7 @@ docker-compose.yml   PostgreSQL, Redis, and SearXNG services
 - Research workers use the SearXNG instance configured by `SEARXNG_BASE_URL`.
 - The PDF export is generated from the Markdown report and includes the confidence score.
 - The dashboard shows live agent logs while the job is running, then renders the final report and PDF download.
+- CLI runs write PDFs into `data/` using a sanitized version of the research question.
 
 ## License
 
