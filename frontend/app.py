@@ -1,24 +1,113 @@
 import streamlit as st
 import requests
 import time
+import html
+import re
 
 API_URL = "http://localhost:8000"
 
 st.set_page_config(page_title="ResearchForge", layout="wide", initial_sidebar_state="expanded")
+
+# === Helper: escape text for safe HTML injection ===
+def safe_text(text: str) -> str:
+    """Escape text so it renders as plain text inside HTML."""
+    text = html.escape(text)
+    text = text.replace("\n", "<br>")
+    text = text.replace("  ", " &nbsp;")
+    return text
+
+# === Helper: lightweight Markdown to HTML converter ===
+def md_to_html(md: str) -> str:
+    """Convert basic Markdown to HTML for the report body."""
+    text = md
+
+    # Code blocks (```...```)
+    def code_block(m):
+        code = html.escape(m.group(2))
+        return f'<pre><code>{code}</code></pre>'
+    text = re.sub(r'```(?:\w+)?\n(.*?)```', code_block, text, flags=re.DOTALL)
+
+    # Inline code
+    text = re.sub(r'`([^`]+)`', lambda m: f'<code>{html.escape(m.group(1))}</code>', text)
+
+    # Headings (process from h6 down to h1 to avoid double-matching)
+    for i in range(6, 0, -1):
+        text = re.sub(rf'^#{{{i}}} (.*?)$', rf'<h{i}>\1</h{i}>', text, flags=re.MULTILINE)
+
+    # Bold & italic
+    text = re.sub(r'\*\*\*(.*?)\*\*\*', r'<strong><em>\1</em></strong>', text)
+    text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'\*(.*?)\*', r'<em>\1</em>', text)
+    text = re.sub(r'___(.*?)___', r'<strong><em>\1</em></strong>', text)
+    text = re.sub(r'__(.*?)__', r'<strong>\1</strong>', text)
+    text = re.sub(r'_(.*?)_', r'<em>\1</em>', text)
+
+    # Links
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
+
+    # Images
+    text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'<img src="\2" alt="\1">', text)
+
+    # Horizontal rules
+    text = re.sub(r'^(---+|\*\*\*+|___+)$', '<hr>', text, flags=re.MULTILINE)
+
+    # Blockquotes
+    def bq_repl(m):
+        content = re.sub(r'^> ?', '', m.group(1), flags=re.MULTILINE).strip()
+        content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', content)
+        content = re.sub(r'\*(.*?)\*', r'<em>\1</em>', content)
+        content = content.replace('\n', '<br>')
+        return f'<blockquote>{content}</blockquote>'
+    text = re.sub(r'((?:^>.*?\n)+)', bq_repl, text, flags=re.MULTILINE)
+
+    # Unordered lists
+    def ul_repl(m):
+        items = [re.sub(r'^[-*+] ', '', line) for line in m.group(1).strip().split('\n')]
+        return '<ul>' + ''.join(f'<li>{item}</li>' for item in items if item.strip()) + '</ul>'
+    text = re.sub(r'((?:^[-*+] .*?\n)+)', ul_repl, text, flags=re.MULTILINE)
+
+    # Ordered lists
+    def ol_repl(m):
+        items = [re.sub(r'^\d+\. ', '', line) for line in m.group(1).strip().split('\n')]
+        return '<ol>' + ''.join(f'<li>{item}</li>' for item in items if item.strip()) + '</ol>'
+    text = re.sub(r'((?:^\d+\. .*?\n)+)', ol_repl, text, flags=re.MULTILINE)
+
+    # Tables (simple pipe tables)
+    def table_repl(m):
+        lines = m.group(1).strip().split('\n')
+        if len(lines) < 2:
+            return m.group(0)
+        headers = [c.strip() for c in lines[0].split('|') if c.strip()]
+        header_html = ''.join(f'<th>{h}</th>' for h in headers)
+        rows_html = ''
+        for line in lines[2:]:
+            cells = [c.strip() for c in line.split('|') if c.strip()]
+            rows_html += '<tr>' + ''.join(f'<td>{c}</td>' for c in cells) + '</tr>'
+        return f'<table><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table>'
+    text = re.sub(r'((?:^.*\|.*\n)+)', table_repl, text, flags=re.MULTILINE)
+
+    # Paragraphs
+    paragraphs = text.split('\n\n')
+    result = []
+    for p in paragraphs:
+        p = p.strip()
+        if not p:
+            continue
+        if p.startswith(('<h', '<pre', '<ul', '<ol', '<blockquote', '<hr', '<table')):
+            result.append(p)
+        else:
+            p = p.replace('\n', '<br>')
+            result.append(f'<p>{p}</p>')
+    return '\n\n'.join(result)
+
 
 # === Custom CSS ===
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&display=swap');
 
-    /* Global */
-    html, body, [class*="css-"] {
-        font-family: 'Inter', sans-serif;
-    }
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
+    html, body, [class*="css-"] { font-family: 'Inter', sans-serif; }
+    .main .block-container { padding-top: 2rem; padding-bottom: 2rem; }
 
     /* Sidebar step cards */
     .step-card {
@@ -42,32 +131,15 @@ st.markdown("""
         transform: translateX(6px);
         box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35);
     }
-    .step-icon {
-        font-size: 22px;
-        margin-bottom: 6px;
-        display: block;
-    }
-    .step-title {
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-        margin-bottom: 3px;
-        text-transform: uppercase;
-    }
-    .step-desc {
-        font-size: 11.5px;
-        opacity: 0.85;
-        line-height: 1.45;
-        font-weight: 400;
-    }
+    .step-icon { font-size: 22px; margin-bottom: 6px; display: block; }
+    .step-title { font-size: 13px; font-weight: 700; letter-spacing: 0.3px; margin-bottom: 3px; text-transform: uppercase; }
+    .step-desc { font-size: 11.5px; opacity: 0.85; line-height: 1.45; font-weight: 400; }
     .step-number-badge {
         position: absolute;
-        top: 10px;
-        right: 12px;
+        top: 10px; right: 12px;
         background: rgba(255,255,255,0.2);
         border-radius: 50%;
-        width: 24px;
-        height: 24px;
+        width: 24px; height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -137,6 +209,7 @@ st.markdown("""
         color: #374151;
         line-height: 1.6;
         font-weight: 400;
+        font-family: 'Inter', sans-serif;
     }
 
     /* Live activity panel */
@@ -155,8 +228,7 @@ st.markdown("""
         border-bottom: 1px solid #e2e8f0;
     }
     .live-dot {
-        width: 10px;
-        height: 10px;
+        width: 10px; height: 10px;
         background: #10b981;
         border-radius: 50%;
         animation: pulse 2s infinite;
@@ -167,17 +239,8 @@ st.markdown("""
         70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
-    .live-title {
-        font-size: 16px;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 0;
-    }
-    .live-subtitle {
-        font-size: 12px;
-        color: #64748b;
-        margin-left: auto;
-    }
+    .live-title { font-size: 16px; font-weight: 700; color: #1e293b; margin: 0; }
+    .live-subtitle { font-size: 12px; color: #64748b; margin-left: auto; }
 
     /* Report Document */
     .report-wrapper {
@@ -243,18 +306,44 @@ st.markdown("""
         line-height: 1.85;
         color: #334155;
     }
-    .report-body h1, .report-body h2, .report-body h3, .report-body h4 {
+    .report-body h1 {
         font-family: 'Inter', sans-serif;
+        font-size: 26px;
         font-weight: 700;
         color: #0f172a;
         margin-top: 36px;
         margin-bottom: 16px;
         line-height: 1.3;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
     }
-    .report-body h1 { font-size: 26px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-    .report-body h2 { font-size: 21px; color: #1e293b; }
-    .report-body h3 { font-size: 17px; color: #334155; }
-    .report-body h4 { font-size: 15px; color: #475569; }
+    .report-body h2 {
+        font-family: 'Inter', sans-serif;
+        font-size: 21px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-top: 36px;
+        margin-bottom: 16px;
+        line-height: 1.3;
+    }
+    .report-body h3 {
+        font-family: 'Inter', sans-serif;
+        font-size: 17px;
+        font-weight: 700;
+        color: #334155;
+        margin-top: 36px;
+        margin-bottom: 16px;
+        line-height: 1.3;
+    }
+    .report-body h4 {
+        font-family: 'Inter', sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        color: #475569;
+        margin-top: 36px;
+        margin-bottom: 16px;
+        line-height: 1.3;
+    }
     .report-body p { margin-bottom: 18px; }
     .report-body strong { color: #0f172a; font-weight: 700; }
     .report-body blockquote {
@@ -281,6 +370,13 @@ st.markdown("""
         border-radius: 10px;
         overflow-x: auto;
         border: 1px solid #e2e8f0;
+        margin: 20px 0;
+    }
+    .report-body pre code {
+        background: transparent;
+        padding: 0;
+        border: none;
+        font-size: 13px;
     }
     .report-body ul, .report-body ol {
         margin-left: 24px;
@@ -309,6 +405,15 @@ st.markdown("""
     .report-body td {
         padding: 10px 12px;
         border-bottom: 1px solid #e2e8f0;
+    }
+    .report-body a {
+        color: #4f46e5;
+        text-decoration: underline;
+    }
+    .report-body img {
+        max-width: 100%;
+        border-radius: 8px;
+        margin: 16px 0;
     }
 
     /* Input area */
@@ -423,7 +528,7 @@ if st.button("Start Research", type="primary") and query:
         except Exception:
             pass
 
-        # Build styled log display
+        # Build styled log display using st.html()
         if all_logs:
             log_html = '<div class="live-panel"><div class="live-header"><div class="live-dot"></div><div class="live-title">⚡ Live Agent Activity</div><div class="live-subtitle">Streaming...</div></div>'
             for log in all_logs:
@@ -431,31 +536,32 @@ if st.button("Start Research", type="primary") and query:
                 msg = log.get("message", "")
                 icon, label, color = agent_meta.get(agent, ("▪️", "Unknown", "#9ca3af"))
                 safe_agent = agent.replace("-", "_").replace(" ", "_")
-                log_html += f"""
-                <div class="agent-log-container agent-{safe_agent}">
-                    <div class="agent-header">
-                        <span>{icon}</span>
-                        <span>{label}</span>
-                        <span class="agent-badge">AGENT</span>
-                    </div>
-                    <div class="agent-message">{msg}</div>
-                </div>
-                """
+                safe_msg = safe_text(msg)
+                log_html += (
+                    f'<div class="agent-log-container agent-{safe_agent}">'
+                    f'  <div class="agent-header">'
+                    f'    <span>{icon}</span>'
+                    f'    <span>{label}</span>'
+                    f'    <span class="agent-badge">AGENT</span>'
+                    f'  </div>'
+                    f'  <div class="agent-message">{safe_msg}</div>'
+                    f'</div>'
+                )
             log_html += '</div>'
-            log_area.markdown(log_html, unsafe_allow_html=True)
+            log_area.html(log_html)
         else:
-            log_area.markdown("""
-            <div class="live-panel">
-                <div class="live-header">
-                    <div class="live-dot"></div>
-                    <div class="live-title">⚡ Live Agent Activity</div>
-                </div>
-                <div style="text-align:center; padding:40px; color:#94a3b8;">
-                    <div style="font-size:32px; margin-bottom:12px;">⏳</div>
-                    <div style="font-size:14px;">Waiting for first agent steps...</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            log_area.html(
+                '<div class="live-panel">'
+                '  <div class="live-header">'
+                '    <div class="live-dot"></div>'
+                '    <div class="live-title">⚡ Live Agent Activity</div>'
+                '  </div>'
+                '  <div style="text-align:center; padding:40px; color:#94a3b8;">'
+                '    <div style="font-size:32px; margin-bottom:12px;">⏳</div>'
+                '    <div style="font-size:14px;">Waiting for first agent steps...</div>'
+                '  </div>'
+                '</div>'
+            )
 
         # Check if report ready
         try:
@@ -472,50 +578,31 @@ if st.button("Start Research", type="primary") and query:
         st.warning("⏱️ Report did not complete within the time limit. The job may still be running.")
         st.stop()
 
-    # 3. Final log update
-    try:
-        logs_resp = requests.get(f"{API_URL}/job/{job_id}/logs?count=100")
-        if logs_resp.status_code == 200:
-            final_logs = logs_resp.json().get("logs", [])
-            if final_logs:
-                log_html = '<div class="live-panel"><div class="live-header"><div class="live-dot" style="background:#3b82f6; box-shadow:0 0 0 0 rgba(59,130,246,0.7);"></div><div class="live-title">✅ Final Agent Activity</div><div class="live-subtitle">Complete</div></div>'
-                for log in final_logs:
-                    agent = log.get("agent", "unknown")
-                    msg = log.get("message", "")
-                    icon, label, color = agent_meta.get(agent, ("▪️", "Unknown", "#9ca3af"))
-                    safe_agent = agent.replace("-", "_").replace(" ", "_")
-                    log_html += f"""
-                    <div class="agent-log-container agent-{safe_agent}">
-                        <div class="agent-header">
-                            <span>{icon}</span>
-                            <span>{label}</span>
-                            <span class="agent-badge">DONE</span>
-                        </div>
-                        <div class="agent-message">{msg}</div>
-                    </div>
-                    """
-                log_html += '</div>'
-                log_area.markdown(log_html, unsafe_allow_html=True)
-    except Exception:
-        pass
+    # === HIDE live agent activity, show report ===
+    log_area.empty()
 
-    # 4. Display report in document style
+    # 3. Final log update (optional: show a compact summary instead)
+    # We skip the full final log display since the user wants it hidden
+
+    # 4. Display report in document style with proper Markdown rendering
     report_md = requests.get(f"{API_URL}/job/{job_id}/report/markdown").json()["markdown"]
+    report_html_body = md_to_html(report_md)
 
-    report_placeholder.markdown(f"""
-    <div class="report-wrapper">
-        <div class="report-document">
-            <div class="report-header">
-                <div class="report-title">Research Report</div>
-                <div class="report-meta">ResearchForge · Autonomous Multi-Agent System</div>
-                <div class="report-seal">✓ VERIFIED OUTPUT</div>
-            </div>
-            <div class="report-body">
-                {report_md}
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    report_html = (
+        '<div class="report-wrapper">'
+        '<div class="report-document">'
+        '<div class="report-header">'
+        '<div class="report-title">Research Report</div>'
+        '<div class="report-meta">ResearchForge · Autonomous Multi-Agent System</div>'
+        '<div class="report-seal">✓ VERIFIED OUTPUT</div>'
+        '</div>'
+        '<div class="report-body">'
+        + report_html_body +
+        '</div>'
+        '</div>'
+        '</div>'
+    )
+    report_placeholder.html(report_html)
 
     # 5. PDF Download (kept as-is)
     pdf_resp = requests.get(f"{API_URL}/job/{job_id}/report/pdf")
