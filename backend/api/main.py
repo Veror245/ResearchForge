@@ -183,7 +183,174 @@ async def get_report_markdown(job_id: str):
             raise HTTPException(status_code=404, detail="Report not ready")
         # Use the existing clean_markdown_for_pdf() function you already have
         cleaned = clean_markdown_for_pdf(report.to_markdown())
-        return {"job_id": job_id, "markdown": cleaned}
+        cleaned = cleaned.strip()
+        extensions = ["tables", "fenced_code", "codehilite", "nl2br"]
+        try:
+            html_body = markdown.markdown(cleaned, extensions=extensions, output_format='html')
+        except Exception as e:
+            print(f"  Markdown conversion error: {e}")
+            html_body = f"<pre>{cleaned}</pre>"
+
+        confidence = (
+            f"{report.confidence_score:.0%}"
+            if report.confidence_score is not None
+            else "N/A"
+        )
+        
+        html_full = f"""<!DOCTYPE html>
+            <html lang="en">
+            <head>
+            <meta charset="utf-8">
+            <style>
+                @page {{
+                    size: A4;
+                    margin: 2.5cm 2cm;
+                }}
+                body {{
+                    font-family: Georgia, "Times New Roman", serif;
+                    font-size: 11pt;
+                    line-height: 1.65;
+                    color: #1f2937;
+                    margin: 0;
+                    padding: 0;
+                }}
+                h1 {{
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 22pt;
+                    font-weight: 700;
+                    text-align: center;
+                    color: #111827;
+                    margin: 0 0 35px 0;
+                    padding-bottom: 18px;
+                    border-bottom: 3px solid #111827;
+                    letter-spacing: -0.3px;
+                }}
+                h2 {{
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 14pt;
+                    font-weight: 600;
+                    color: #374151;
+                    border-bottom: 2px solid #e5e7eb;
+                    padding-bottom: 8px;
+                    margin-top: 32px;
+                    margin-bottom: 16px;
+                    page-break-after: avoid;
+                }}
+                h3 {{
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 12pt;
+                    font-weight: 600;
+                    color: #4b5563;
+                    margin-top: 22px;
+                    margin-bottom: 10px;
+                    page-break-after: avoid;
+                }}
+                p {{
+                    margin: 0 0 12px 0;
+                    text-align: justify;
+                    orphans: 3;
+                    widows: 3;
+                }}
+                ul, ol {{
+                    margin: 14px 0;
+                    padding-left: 28px;
+                }}
+                li {{
+                    margin: 8px 0;
+                    padding-left: 6px;
+                    text-align: left;
+                }}
+                li > p {{
+                    margin: 0;
+                }}
+                ol li {{
+                    padding-left: 10px;
+                }}
+                strong {{
+                    color: #111827;
+                    font-weight: 600;
+                }}
+                table {{
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin: 20px 0;
+                    font-size: 10pt;
+                    page-break-inside: avoid;
+                }}
+                table, th, td {{
+                    border: 1px solid #d1d5db;
+                }}
+                th, td {{
+                    padding: 10px 12px;
+                    text-align: left;
+                    vertical-align: top;
+                }}
+                th {{
+                    background-color: #f9fafb;
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-weight: 600;
+                    color: #374151;
+                }}
+                tr:nth-child(even) {{
+                    background-color: #fafafa;
+                }}
+                pre {{
+                    background: #f3f4f6;
+                    padding: 14px;
+                    overflow-x: auto;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    border-left: 4px solid #d1d5db;
+                    font-size: 10pt;
+                    margin: 16px 0;
+                }}
+                code {{
+                    font-family: "Courier New", Courier, monospace;
+                    background: #f3f4f6;
+                    padding: 2px 5px;
+                    border-radius: 3px;
+                    font-size: 9.5pt;
+                }}
+                blockquote {{
+                    border-left: 4px solid #9ca3af;
+                    padding-left: 18px;
+                    color: #4b5563;
+                    margin: 20px 0;
+                    font-style: italic;
+                }}
+                hr {{
+                    border: none;
+                    border-top: 1px solid #e5e7eb;
+                    margin: 30px 0;
+                }}
+                .confidence-box {{
+                    text-align: center;
+                    margin-top: 30px;
+                    padding: 18px;
+                    border: 2px solid #e5e7eb;
+                    background: #f9fafb;
+                }}
+                .confidence-label {{
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 10pt;
+                    color: #6b7280;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-bottom: 6px;
+                }}
+                .confidence-value {{
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 20pt;
+                    font-weight: 700;
+                    color: #111827;
+                }}
+            </style>
+            </head>
+            <body>
+            {html_body}
+            </body>
+            </html>"""
+        return {"job_id": job_id, "markdown": cleaned, "html": html_full, "confidence_score": confidence}
     
 from fastapi.responses import FileResponse
 import tempfile

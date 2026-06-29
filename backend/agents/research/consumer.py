@@ -31,6 +31,7 @@ class ResearchWorkerConsumer:
     async def run(self, shutdown_event: asyncio.Event, consumer_id: str = "worker-1"):
         rd = await get_redis()
         await ensure_consumer_group(rd, STREAM_TASKS, WORKER_GROUP)
+        await self._claim_pending(rd, STREAM_TASKS, WORKER_GROUP, consumer_id)
 
         logger.info(f"Worker consumer {consumer_id} started. Listening on {STREAM_TASKS}")
 
@@ -75,7 +76,22 @@ class ResearchWorkerConsumer:
             except Exception as e:
                 logger.error(f"Error in consumer loop: {e}", exc_info=True)
                 await asyncio.sleep(1)  # avoid tight loop on continuous errors
-
+    
+    async def _claim_pending(self, rd, stream, group, consumer_id):
+        """Acknowledge all pending messages for this consumer group."""
+        try:
+            # Fetch pending info
+            pending = await rd.xpending(stream, group)
+            if pending and pending.get("pending", 0) > 0:
+                # Auto-claim and acknowledge everything
+                claimed = await rd.xautoclaim(
+                    stream, group, consumer_id, min_idle_time=0, start="0-0"
+                )
+                for msg_id, fields in claimed[1]:
+                    await rd.xack(stream, group, msg_id)
+        except Exception as e:
+            logger.warning(f"Could not auto-ack pending messages: {e}")
+            
     async def process_task(self, task_id_str: str, query: str) -> bool:
         """Execute a single task: search, crawl, store findings, publish finding IDs."""
         from uuid import UUID

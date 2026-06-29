@@ -511,10 +511,10 @@ if st.button("Start Research", type="primary") and query:
     agent_meta = {
         "planner":        ("🧠", "Planner",       "#8b5cf6"),
         "research":       ("🌐", "Research",      "#3b82f6"),
-        "claim_extractor":("📝", "Claim Extractor","#10b981"),
+        "claim":          ("📝", "Claim Extractor","#10b981"),
         "critic":         ("🔍", "Critic",        "#f59e0b"),
         "debate":         ("⚖️", "Debate",        "#ef4444"),
-        "report_writer":  ("📄", "Report Writer", "#6366f1"),
+        "report":         ("📄", "Report Writer", "#6366f1"),
     }
 
     for _ in range(max_checks):
@@ -586,6 +586,7 @@ if st.button("Start Research", type="primary") and query:
 
     # 4. Display report in document style with proper Markdown rendering
     report_md = requests.get(f"{API_URL}/job/{job_id}/report/markdown").json()["markdown"]
+    # report_html = requests.get(f"{API_URL}/job/{job_id}/report/markdown").json()["html"]
     report_html_body = md_to_html(report_md)
 
     report_html = (
