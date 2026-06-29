@@ -271,7 +271,8 @@ class ClaimExtraction:
                 if c.chunk is None:
                     c.chunk = chunk  # attach the chunk text to the claim
 
-            await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", 
+            if chunk_idx%5 == 0:
+                await publish_log(redis, str(finding.job_id if finding else 'N/A'), "claim", 
                     f"Chunk {chunk_idx + 1}: "
                     f"extracted {len(claims)} claims")
             

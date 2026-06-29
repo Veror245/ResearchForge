@@ -150,20 +150,23 @@ class CritiqueAgent:
     async def process_critique(self, index: int, input_dict: dict, total: int, job_id: str = "N/A") -> list[CritiqueSchema]:
         chain = self.prompt | self.local  # Use local model for critique generation
         rd = await get_redis()
-        logger.info(f"Processing critique {index + 1}/{total}")
-        await publish_log(rd, job_id, "critic", f"Started Processing Critiques")
+        
+        
         try:
             async with self.sem:
+                # logger.info(f"Processing critique {index + 1}/{total}")
+                if index % 5 == 0:
+                    await publish_log(rd, job_id, "critic", f"Processing critique {index + 1}/{total}")
                 raw_output = await self._call_llm(chain, input_dict)
             
             content = raw_output.content.strip()
         except Exception as e:
             logger.error(f"Error occurred while calling LLM: {e}")
             return []
-
+           
         critiques = self._titanium_parse_critiques(content)
         logger.info(f"Parsed {len(critiques)} critiques")
-        await publish_log(rd, job_id, "critic", f"parsed {len(critiques)} critiques.")
+        
         
         return critiques
         
@@ -175,10 +178,13 @@ class CritiqueAgent:
         #     "chunk_text": chunk_text,
         #     "query": query
         # }
-        
+        rd = await get_redis()
         total = len(input)
+        await publish_log(rd, job_id, "critic", f"Started Processing {total} Critiques")
         tasks = [self.process_critique(index, input_dict, total, job_id) for index, input_dict in enumerate(input)]  # Adjust the number of parallel tasks as needed
         results = await asyncio.gather(*tasks)
+        
+        # await publish_log(rd, job_id, "critic", f"parsed {len(tasks)} critiques.")
         
         all_critiques : list[list[CritiqueSchema]] = []
         for r in results:
@@ -188,5 +194,6 @@ class CritiqueAgent:
                 )
                 continue
             all_critiques.append(r) 
-            
+        
+        
         return all_critiques

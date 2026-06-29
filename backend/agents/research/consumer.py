@@ -153,7 +153,7 @@ class ResearchWorkerConsumer:
                 await session.commit()
                 rd = await get_redis()
                 await publish_message(rd, STREAM_TASK_READY, {"task_id": task_id_str})
-                await publish_log(rd, str(finding.job_id), "research", f"Task {task_id_str} completed with {len(findings_data)} findings saved.")
+                await publish_log(rd, str(finding.job_id), "research", f"Task {finding.query} completed with {len(findings_data)} findings saved.")
                 logger.info(f"Task {task_id_str} completed, {len(findings_data)} findings saved.")
                 
                 await publish_message(rd, STREAM_TASK_EVENTS, {
