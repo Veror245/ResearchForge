@@ -163,10 +163,10 @@ st.markdown("""
     }
     .agent-planner      { border-left-color: #8b5cf6; background: linear-gradient(to right, #faf5ff, #ffffff); }
     .agent-research     { border-left-color: #3b82f6; background: linear-gradient(to right, #eff6ff, #ffffff); }
-    .agent-claim_extractor { border-left-color: #10b981; background: linear-gradient(to right, #ecfdf5, #ffffff); }
+    .agent-claim { border-left-color: #10b981; background: linear-gradient(to right, #ecfdf5, #ffffff); }
     .agent-critic       { border-left-color: #f59e0b; background: linear-gradient(to right, #fffbeb, #ffffff); }
     .agent-debate       { border-left-color: #ef4444; background: linear-gradient(to right, #fef2f2, #ffffff); }
-    .agent-report_writer { border-left-color: #6366f1; background: linear-gradient(to right, #eef2ff, #ffffff); }
+    .agent-report { border-left-color: #6366f1; background: linear-gradient(to right, #eef2ff, #ffffff); }
     .agent-unknown      { border-left-color: #9ca3af; background: #ffffff; }
 
     .agent-header {
@@ -181,10 +181,10 @@ st.markdown("""
     }
     .agent-planner .agent-header      { color: #7c3aed; }
     .agent-research .agent-header     { color: #2563eb; }
-    .agent-claim_extractor .agent-header { color: #059669; }
+    .agent-claim .agent-header { color: #059669; }
     .agent-critic .agent-header       { color: #d97706; }
     .agent-debate .agent-header       { color: #dc2626; }
-    .agent-report_writer .agent-header { color: #4f46e5; }
+    .agent-report .agent-header { color: #4f46e5; }
     .agent-unknown .agent-header      { color: #6b7280; }
 
     .agent-badge {
@@ -198,10 +198,10 @@ st.markdown("""
     }
     .agent-planner .agent-badge      { background: #8b5cf6; }
     .agent-research .agent-badge     { background: #3b82f6; }
-    .agent-claim_extractor .agent-badge { background: #10b981; }
+    .agent-claim .agent-badge { background: #10b981; }
     .agent-critic .agent-badge       { background: #f59e0b; }
     .agent-debate .agent-badge       { background: #ef4444; }
-    .agent-report_writer .agent-badge { background: #6366f1; }
+    .agent-report .agent-badge { background: #6366f1; }
     .agent-unknown .agent-badge      { background: #9ca3af; }
 
     .agent-message {
@@ -586,8 +586,8 @@ if st.button("Start Research", type="primary") and query:
 
     # 4. Display report in document style with proper Markdown rendering
     report_md = requests.get(f"{API_URL}/job/{job_id}/report/markdown").json()["markdown"]
-    # report_html = requests.get(f"{API_URL}/job/{job_id}/report/markdown").json()["html"]
-    report_html_body = md_to_html(report_md)
+    report_html = requests.get(f"{API_URL}/job/{job_id}/report/markdown").json()["html"]
+    # report_html_body = md_to_html(report_md)
 
     report_html = (
         '<div class="report-wrapper">'
@@ -598,7 +598,7 @@ if st.button("Start Research", type="primary") and query:
         '<div class="report-seal">✓ VERIFIED OUTPUT</div>'
         '</div>'
         '<div class="report-body">'
-        + report_html_body +
+        + report_html +
         '</div>'
         '</div>'
         '</div>'
